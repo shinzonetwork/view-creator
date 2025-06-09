@@ -59,7 +59,7 @@ func (v *View) SetQueryFromFile(filePath string) error {
 }
 
 func (v *View) SetTypeFromFile(filePath string) error {
-	return v.setFile("type.graphql", filePath, &v.TypeFile)
+	return v.setFile("type.graphql", filePath, &v.SdlFile)
 }
 
 func (v *View) SetTransformFromFile(filePath string) error {

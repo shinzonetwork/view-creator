@@ -12,6 +12,6 @@ type View struct {
 	CreatedAt     time.Time `json:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
 	QueryFile     string    `json:"queryFile,omitempty"`
-	TypeFile      string    `json:"typeFile,omitempty"`
+	SdlFile       string    `json:"sdlFile,omitempty"`
 	TransformFile string    `json:"transformFile,omitempty"`
 }
