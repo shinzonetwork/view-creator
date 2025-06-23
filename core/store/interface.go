@@ -11,20 +11,20 @@ import "github.com/shinzonetwork/view-creator/core/models"
 type ViewStore interface {
 	// Create initializes and stores a new view with the given name and timestamp.
 	// Returns the newly created View.
-	Create(name string, timestamp string) models.View
+	Create(name string, timestamp string) (models.View, error)
 
 	// Load retrieves a view by its name.
 	// Returns the loaded View or an empty View if not found.
-	Load(name string) models.View
+	Load(name string) (models.View, error)
 
 	// List returns all currently stored views.
-	List() []models.View
+	List() ([]models.View, error)
 
 	// Save persists updates to a view identified by its name.
 	// Returns the updated View.
-	Save(name string) models.View
+	Save(name string, view models.View) (models.View, error)
 
 	// Delete removes the view identified by name from the store.
 	// Returns the deleted View.
-	Delete(name string) models.View
+	Delete(name string) (models.View, error)
 }
