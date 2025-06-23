@@ -14,13 +14,19 @@ type LocalStore struct {
 	BasePath string
 }
 
-func NewLocalStore() (*LocalStore, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get home directory: %w", err)
+func NewLocalStore(path string) (*LocalStore, error) {
+	var base string
+
+	if path == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("unable to get home directory: %w", err)
+		}
+		base = filepath.Join(home, ".shinzo", "views")
+	} else {
+		base = filepath.Join(path, ".shinzo", "views")
 	}
 
-	base := filepath.Join(home, ".shinzo", "views")
 	if err := os.MkdirAll(base, 0755); err != nil {
 		return nil, fmt.Errorf("unable to create base directory: %w", err)
 	}
@@ -35,7 +41,7 @@ func (s *LocalStore) Create(name string, timestamp string) (models.View, error) 
 	// Check if the folder already exists
 	if _, err := os.Stat(folderBasePath); err == nil {
 		// Folder exists
-		return models.View{}, store.ErrViewDoesNotExist
+		return models.View{}, store.ErrViewAlreadyExist
 	} else if !os.IsNotExist(err) {
 		// Some other unexpected error
 		return models.View{}, fmt.Errorf("failed to check if view exists: %w", err)
