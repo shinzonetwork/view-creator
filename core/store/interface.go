@@ -26,5 +26,5 @@ type ViewStore interface {
 
 	// Delete removes the view identified by name from the store.
 	// Returns the deleted View.
-	Delete(name string) (models.View, error)
+	Delete(name string) error
 }
