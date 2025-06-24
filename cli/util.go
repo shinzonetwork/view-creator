@@ -30,6 +30,10 @@ func setContextStore(cmd *cobra.Command) error {
 	return nil
 }
 
+func WithStore(ctx context.Context, s store.ViewStore) context.Context {
+	return context.WithValue(ctx, storeContextKey, s)
+}
+
 func printViewPretty(cmd *cobra.Command, view models.View, verbose bool, jsonOutput bool) {
 	if jsonOutput {
 		var output any
