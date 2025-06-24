@@ -14,17 +14,18 @@ type LocalStore struct {
 	BasePath string
 }
 
-func NewLocalStore(path string) (*LocalStore, error) {
+func NewLocalStore(path ...string) (*LocalStore, error) {
 	var base string
 
-	if path == "" {
+	// check if a custom path was provided
+	if len(path) == 0 || path[0] == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return nil, fmt.Errorf("unable to get home directory: %w", err)
 		}
 		base = filepath.Join(home, ".shinzo", "views")
 	} else {
-		base = filepath.Join(path, ".shinzo", "views")
+		base = filepath.Join(path[0], ".shinzo", "views")
 	}
 
 	if err := os.MkdirAll(base, 0755); err != nil {
