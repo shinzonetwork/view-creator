@@ -3,6 +3,7 @@ package local
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -193,5 +194,34 @@ func (s *LocalStore) Delete(name string) error {
 		return fmt.Errorf("failed to delete view: %w", err)
 	}
 
+	return nil
+}
+
+func (s *LocalStore) UploadAsset(name string, label string, file io.Reader) (string, error) {
+	folderBasePath := filepath.Join(s.BasePath, name)
+	assetFolderPath := filepath.Join(folderBasePath, "assets")
+
+	assetPath := filepath.Join(assetFolderPath, fmt.Sprintf("%s.wasm", label))
+	outFile, err := os.Create(assetPath)
+	if err != nil {
+		return "", err
+	}
+	defer outFile.Close()
+
+	if _, err := io.Copy(outFile, file); err != nil {
+		return "", err
+	}
+
+	return assetPath, nil
+}
+
+func (s *LocalStore) DeleteAsset(viewName string, label string) error {
+	assetPath := filepath.Join(s.BasePath, ".shinzo", "views", viewName, "assets", fmt.Sprintf("%s.wasm", label))
+	if err := os.Remove(assetPath); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to delete asset: %w", err)
+	}
 	return nil
 }
