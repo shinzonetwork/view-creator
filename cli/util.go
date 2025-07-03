@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"strconv"
+	"time"
 
 	"github.com/shinzonetwork/view-creator/core/models"
 	"github.com/shinzonetwork/view-creator/core/store"
@@ -111,11 +113,14 @@ func printViewPretty(cmd *cobra.Command, view models.View, verbose bool, jsonOut
 	}
 	cmd.Println()
 
+	createdAt, _ := strconv.ParseInt(view.Metadata.CreatedAt, 10, 64)
+	updatedAt, _ := strconv.ParseInt(view.Metadata.UpdatedAt, 10, 64)
+
 	cmd.Printf("🗂  Metadata:\n - Version: %d\n - Total: %d\n - Created At: %s\n - Updated At: %s\n",
 		view.Metadata.Version,
 		view.Metadata.Total,
-		view.Metadata.CreatedAt,
-		view.Metadata.UpdatedAt,
+		time.Unix(createdAt, 0).UTC(),
+		time.Unix(updatedAt, 0).UTC(),
 	)
 
 	if verbose && len(view.Metadata.Revisions) > 0 {
