@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func makeAddSdlCommand(viewName *string) *cobra.Command {
+func MakeAddSdlCommand(viewName *string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "sdl '<sdl>'",
 		Short: "Add or update the sdl of the view",

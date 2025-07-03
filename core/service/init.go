@@ -62,6 +62,28 @@ func UpdateSDL(name string, sdl string, s store.ViewStore) (models.View, error) 
 	return view, nil
 }
 
+func ClearSDL(name string, s store.ViewStore) (models.View, error) {
+	view, err := s.Load(name)
+	if err != nil {
+		return models.View{}, err
+	}
+
+	view.Sdl = nil
+
+	return s.Save(name, view)
+}
+
+func ClearQuery(name string, s store.ViewStore) (models.View, error) {
+	view, err := s.Load(name)
+	if err != nil {
+		return models.View{}, err
+	}
+
+	view.Query = nil
+
+	return s.Save(name, view)
+}
+
 func InitLens(name string, label string, path string, args map[string]any, s store.ViewStore) (models.View, error) {
 	view, err := s.Load(name)
 	if err != nil {
@@ -115,5 +137,40 @@ func InitLens(name string, label string, path string, args map[string]any, s sto
 	view.Transform.Lenses = append(view.Transform.Lenses, newLens)
 
 	// Save the updated view
+	return s.Save(name, view)
+}
+
+func RemoveLens(name string, label string, s store.ViewStore) (models.View, error) {
+	view, err := s.Load(name)
+	if err != nil {
+		return models.View{}, err
+	}
+
+	var (
+		updatedLenses []models.Lens
+		found         bool
+	)
+
+	for _, lens := range view.Transform.Lenses {
+		if lens.Label == label {
+			found = true
+			continue // skip the one we want to remove
+		}
+		updatedLenses = append(updatedLenses, lens)
+	}
+
+	if !found {
+		return models.View{}, fmt.Errorf(`lens with label "%s" not found`, label)
+	}
+
+	// Update view with remaining lenses
+	view.Transform.Lenses = updatedLenses
+
+	// Delete the wasm file associated with the lens
+	if err := s.DeleteAsset(name, label); err != nil {
+		return models.View{}, fmt.Errorf("failed to delete lens asset: %w", err)
+	}
+
+	// Save and return the updated view
 	return s.Save(name, view)
 }

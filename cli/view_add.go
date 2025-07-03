@@ -26,8 +26,8 @@ func MakeViewAddCommand() *cobra.Command {
 
 	cmd.PersistentFlags().StringVar(&viewName, "name", "", "Name of the view")
 
-	cmd.AddCommand(makeAddQueryCommand(&viewName))
-	cmd.AddCommand(makeAddSdlCommand(&viewName))
+	cmd.AddCommand(MakeAddQueryCommand(&viewName))
+	cmd.AddCommand(MakeAddSdlCommand(&viewName))
 	cmd.AddCommand(MakeAddLensCommand(&viewName))
 
 	return cmd

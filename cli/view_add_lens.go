@@ -16,7 +16,7 @@ func MakeAddLensCommand(viewName *string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "lens",
-		Short: "Manage lenses in a view",
+		Short: "Add lenses in a view",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var path string
 

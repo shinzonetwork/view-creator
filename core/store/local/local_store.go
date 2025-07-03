@@ -216,10 +216,13 @@ func (s *LocalStore) UploadAsset(name string, label string, file io.Reader) (str
 }
 
 func (s *LocalStore) DeleteAsset(viewName string, label string) error {
-	assetPath := filepath.Join(s.BasePath, ".shinzo", "views", viewName, "assets", fmt.Sprintf("%s.wasm", label))
+	folderBasePath := filepath.Join(s.BasePath, viewName)
+	assetFolderPath := filepath.Join(folderBasePath, "assets")
+	assetPath := filepath.Join(assetFolderPath, fmt.Sprintf("%s.wasm", label))
+
 	if err := os.Remove(assetPath); err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return nil // already deleted or never existed
 		}
 		return fmt.Errorf("failed to delete asset: %w", err)
 	}

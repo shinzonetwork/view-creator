@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func makeAddQueryCommand(viewName *string) *cobra.Command {
+func MakeAddQueryCommand(viewName *string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "query '<query>'",
 		Short: "Add or update the query of the view",
