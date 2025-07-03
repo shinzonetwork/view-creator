@@ -8,7 +8,7 @@ import (
 func MakeViewDeleteCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete [name]",
-		Short: "Delet a saved view",
+		Short: "Delete a saved view",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			storeImpl := mustGetContextStore(cmd)
