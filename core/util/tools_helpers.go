@@ -1,25 +1,37 @@
 package util
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/shinzonetwork/view-creator/tools"
 )
 
-func EnsureModelsFile() error {
+func EnsureSchemaFileExists() error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-	target := filepath.Join(home, ".shinzo", "tools", "schema.graphql")
+	schemaPath := filepath.Join(home, ".shinzo", "tools", "schema.graphql")
 
-	if _, err := os.Stat(target); os.IsNotExist(err) {
-		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+	_, statErr := os.Stat(schemaPath)
+	if os.IsNotExist(statErr) || isFileEmpty(schemaPath) {
+		content := fmt.Sprintf(
+			"# --- DEFAULT SCHEMAS ---\n\n%s\n\n# --- CUSTOM SCHEMAS ---\n",
+			strings.TrimSpace(tools.DefaultSchema),
+		)
+		if err := os.MkdirAll(filepath.Dir(schemaPath), 0755); err != nil {
 			return err
 		}
-		return os.WriteFile(target, tools.DefaultSchema, 0644)
+		return os.WriteFile(schemaPath, []byte(content), 0644)
 	}
 
 	return nil
+}
+
+func isFileEmpty(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Size() == 0
 }

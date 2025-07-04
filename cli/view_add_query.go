@@ -12,7 +12,7 @@ func MakeAddQueryCommand(viewName *string) *cobra.Command {
 		Short: "Add or update the query of the view",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := util.EnsureModelsFile(); err != nil {
+			if err := util.EnsureSchemaFileExists(); err != nil {
 				return err
 			}
 			store := mustGetContextStore(cmd)
