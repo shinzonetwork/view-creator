@@ -32,7 +32,9 @@ func UpdateQuery(name string, query string, s store.ViewStore) (models.View, err
 		return models.View{}, err
 	}
 
-	// TODO: validate query
+	if err := util.ValidateQueryAgainstSchema(query); err != nil {
+		return models.View{}, err
+	}
 
 	view.Query = &query
 
