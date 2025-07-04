@@ -1,3 +1,5 @@
+# --- DEFAULT MODELS ---
+
 directive @index(unique: Boolean) on FIELD_DEFINITION | OBJECT
 directive @relation(name: String) on FIELD_DEFINITION
 
@@ -69,3 +71,5 @@ type Event {
     # Relationships
     log: Log @index @relation(name: "log_events")
 }
+
+# --- CUSTOM MODELS ---
