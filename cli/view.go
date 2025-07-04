@@ -21,6 +21,7 @@ func MakeViewCommand() *cobra.Command {
 	cmd.AddCommand(MakeViewDeleteCommand())
 	cmd.AddCommand(MakeViewInspectCommand())
 	cmd.AddCommand(MakeViewAddCommand())
+	cmd.AddCommand(MakeViewRemoveCommand())
 
 	return cmd
 }
