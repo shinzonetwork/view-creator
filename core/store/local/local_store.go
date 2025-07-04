@@ -3,6 +3,7 @@ package local
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -14,17 +15,18 @@ type LocalStore struct {
 	BasePath string
 }
 
-func NewLocalStore(path string) (*LocalStore, error) {
+func NewLocalStore(path ...string) (*LocalStore, error) {
 	var base string
 
-	if path == "" {
+	// check if a custom path was provided
+	if len(path) == 0 || path[0] == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return nil, fmt.Errorf("unable to get home directory: %w", err)
 		}
 		base = filepath.Join(home, ".shinzo", "views")
 	} else {
-		base = filepath.Join(path, ".shinzo", "views")
+		base = filepath.Join(path[0], ".shinzo", "views")
 	}
 
 	if err := os.MkdirAll(base, 0755); err != nil {
@@ -192,5 +194,37 @@ func (s *LocalStore) Delete(name string) error {
 		return fmt.Errorf("failed to delete view: %w", err)
 	}
 
+	return nil
+}
+
+func (s *LocalStore) UploadAsset(name string, label string, file io.Reader) (string, error) {
+	folderBasePath := filepath.Join(s.BasePath, name)
+	assetFolderPath := filepath.Join(folderBasePath, "assets")
+
+	assetPath := filepath.Join(assetFolderPath, fmt.Sprintf("%s.wasm", label))
+	outFile, err := os.Create(assetPath)
+	if err != nil {
+		return "", err
+	}
+	defer outFile.Close()
+
+	if _, err := io.Copy(outFile, file); err != nil {
+		return "", err
+	}
+
+	return assetPath, nil
+}
+
+func (s *LocalStore) DeleteAsset(viewName string, label string) error {
+	folderBasePath := filepath.Join(s.BasePath, viewName)
+	assetFolderPath := filepath.Join(folderBasePath, "assets")
+	assetPath := filepath.Join(assetFolderPath, fmt.Sprintf("%s.wasm", label))
+
+	if err := os.Remove(assetPath); err != nil {
+		if os.IsNotExist(err) {
+			return nil // already deleted or never existed
+		}
+		return fmt.Errorf("failed to delete asset: %w", err)
+	}
 	return nil
 }

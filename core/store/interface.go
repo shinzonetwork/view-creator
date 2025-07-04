@@ -1,6 +1,10 @@
 package store
 
-import "github.com/shinzonetwork/view-creator/core/models"
+import (
+	"io"
+
+	"github.com/shinzonetwork/view-creator/core/models"
+)
 
 // ViewStore defines a contract for persisting and retrieving views across various storage.
 //
@@ -26,5 +30,11 @@ type ViewStore interface {
 
 	// Delete removes the view identified by name from the store.
 	// Returns the deleted View.
-	Delete(name string) (models.View, error)
+	Delete(name string) error
+
+	// Uploads an asset (e.g. .wasm) to a view, identified by label.
+	UploadAsset(viewName string, label string, file io.Reader) (string, error)
+
+	// Deletes an asset by view name and label.
+	DeleteAsset(viewName string, label string) error
 }
