@@ -1,3 +1,6 @@
+directive @index(unique: Boolean) on FIELD_DEFINITION | OBJECT
+directive @relation(name: String) on FIELD_DEFINITION
+
 type Block {
     hash: String @index(unique: true)
     number: Int @index
