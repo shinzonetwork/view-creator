@@ -10,7 +10,7 @@ func MakeSchemaCommand() *cobra.Command {
 		Use:   "schema",
 		Short: "Manage custom models in the Viewkit schema",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := util.EnsureSchemaFileExists(); err != nil {
+			if err := util.EnsureSchemaFilesExist(); err != nil {
 				return err
 			}
 			return nil

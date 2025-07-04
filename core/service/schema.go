@@ -10,21 +10,16 @@ import (
 	"github.com/shinzonetwork/view-creator/core/util"
 )
 
-const customMarker = "# --- CUSTOM SCHEMAS ---"
-const defaultMarker = "# --- DEFAULT SCHEMAS ---"
-
 func AddCustomSchema(schema string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-	schemaPath := filepath.Join(home, ".shinzo", "tools", "schema.graphql")
+	customPath := filepath.Join(home, ".shinzo", "tools", "schema", "custom_schema.graphql")
 
 	content := ""
-	if b, err := os.ReadFile(schemaPath); err == nil {
+	if b, err := os.ReadFile(customPath); err == nil {
 		content = string(b)
-	} else {
-		content = fmt.Sprintf("%s\n\n%s\n", defaultMarker, customMarker)
 	}
 
 	typeName, err := extractStrictTypeName(schema)
@@ -40,21 +35,8 @@ func AddCustomSchema(schema string) error {
 		return fmt.Errorf("invalid schema: %w", err)
 	}
 
-	parts := strings.Split(content, customMarker)
-	if len(parts) != 2 {
-		return fmt.Errorf("malformed schema file: missing custom section")
-	}
-
-	before := strings.TrimRight(parts[0], "\n")
-	after := strings.TrimLeft(parts[1], "\n")
-
-	newBlock := fmt.Sprintf("\n\n%s\n\n%s\n", customMarker, strings.TrimSpace(schema))
-	newContent := before + newBlock + after
-
-	if err := os.MkdirAll(filepath.Dir(schemaPath), 0755); err != nil {
-		return err
-	}
-	return os.WriteFile(schemaPath, []byte(newContent), 0644)
+	content = strings.TrimSpace(content) + "\n\n" + strings.TrimSpace(schema) + "\n"
+	return os.WriteFile(customPath, []byte(content), 0644)
 }
 
 func RemoveCustomSchema(name string) error {
@@ -62,32 +44,22 @@ func RemoveCustomSchema(name string) error {
 	if err != nil {
 		return err
 	}
-	schemaPath := filepath.Join(home, ".shinzo", "tools", "schema.graphql")
+	customPath := filepath.Join(home, ".shinzo", "tools", "schema", "custom_schema.graphql")
 
-	contentBytes, err := os.ReadFile(schemaPath)
+	contentBytes, err := os.ReadFile(customPath)
 	if err != nil {
-		return fmt.Errorf("could not read schema file: %w", err)
+		return fmt.Errorf("could not read custom schema file: %w", err)
 	}
 	content := string(contentBytes)
 
-	parts := strings.Split(content, customMarker)
-	if len(parts) != 2 {
-		return fmt.Errorf("schema file is malformed or missing custom section")
-	}
-
-	before := parts[0]
-	customBlock := parts[1]
-
 	re := regexp.MustCompile(`(?ms)^type\s+` + regexp.QuoteMeta(name) + `\s*\{[^}]*\}\n*`)
-	modified := re.ReplaceAllString(customBlock, "")
+	modified := re.ReplaceAllString(content, "")
 
-	if modified == customBlock {
+	if modified == content {
 		return fmt.Errorf("type %s not found in custom schemas", name)
 	}
 
-	newContent := before + customMarker + "\n" + strings.TrimLeft(modified, "\n")
-
-	return os.WriteFile(schemaPath, []byte(newContent), 0644)
+	return os.WriteFile(customPath, []byte(strings.TrimSpace(modified)+"\n"), 0644)
 }
 
 func ListSchemas() ([]string, []string, error) {
@@ -95,31 +67,21 @@ func ListSchemas() ([]string, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	schemaPath := filepath.Join(home, ".shinzo", "tools", "schema.graphql")
 
-	contentBytes, err := os.ReadFile(schemaPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not read schema file: %w", err)
-	}
-	content := string(contentBytes)
+	defaultPath := filepath.Join(home, ".shinzo", "tools", "schema", "default_schema.graphql")
+	customPath := filepath.Join(home, ".shinzo", "tools", "schema", "custom_schema.graphql")
 
-	parts := strings.Split(content, customMarker)
-	if len(parts) != 2 {
-		return nil, nil, fmt.Errorf("schema file is malformed")
-	}
-
-	defaultBlock := parts[0]
-	customBlock := parts[1]
+	defaultBlock, _ := os.ReadFile(defaultPath)
+	customBlock, _ := os.ReadFile(customPath)
 
 	typeRegex := regexp.MustCompile(`(?m)^type\s+(\w+)`)
 
-	defaults := []string{}
-	for _, match := range typeRegex.FindAllStringSubmatch(defaultBlock, -1) {
+	var defaults, customs []string
+
+	for _, match := range typeRegex.FindAllStringSubmatch(string(defaultBlock), -1) {
 		defaults = append(defaults, match[1])
 	}
-
-	customs := []string{}
-	for _, match := range typeRegex.FindAllStringSubmatch(customBlock, -1) {
+	for _, match := range typeRegex.FindAllStringSubmatch(string(customBlock), -1) {
 		customs = append(customs, match[1])
 	}
 
@@ -131,30 +93,40 @@ func GetSchemaTypeDefinition(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	schemaPath := filepath.Join(home, ".shinzo", "tools", "schema.graphql")
 
-	b, err := os.ReadFile(schemaPath)
-	if err != nil {
-		return "", fmt.Errorf("could not read schema: %w", err)
+	paths := []string{
+		filepath.Join(home, ".shinzo", "tools", "schema", "default_schema.graphql"),
+		filepath.Join(home, ".shinzo", "tools", "schema", "custom_schema.graphql"),
 	}
-	content := string(b)
 
-	re := regexp.MustCompile(`(?ms)^type\s+` + regexp.QuoteMeta(name) + `\s*\{[^}]*\}`)
-	match := re.FindString(content)
+	for _, path := range paths {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
 
-	if match == "" {
-		return "", fmt.Errorf("type '%s' not found in schema", name)
+		content := string(b)
+		re := regexp.MustCompile(`(?ms)^type\s+` + regexp.QuoteMeta(name) + `\s*\{([^}]*)\}`)
+		matches := re.FindStringSubmatch(content)
+
+		if len(matches) >= 2 {
+			formatted := formatTypeBlock(name, matches[1])
+			return formatted, nil
+		}
 	}
-	return match, nil
+
+	return "", fmt.Errorf("type '%s' not found in schema", name)
 }
 
-func UpdateDefaultSchemas() error {
-	// WIP
+func formatTypeBlock(typeName, rawBody string) string {
+	rawBody = strings.TrimSpace(rawBody)
+	lines := strings.Split(rawBody, "\n")
 
-	// TODO: we need to make this public
-	// const remoteURL = "https://raw.githubusercontent.com/shinzonetwork/viewkit/main/tools/default_schema.graphql"
+	for i, line := range lines {
+		lines[i] = "  " + strings.TrimSpace(line)
+	}
 
-	return nil
+	return fmt.Sprintf("type %s {\n%s\n}", typeName, strings.Join(lines, "\n"))
 }
 
 func extractStrictTypeName(schema string) (string, error) {
@@ -164,4 +136,13 @@ func extractStrictTypeName(schema string) (string, error) {
 		return "", fmt.Errorf("only 'type <Name> { ... }' is supported")
 	}
 	return match[1], nil
+}
+
+func UpdateDefaultSchemas() error {
+	// WIP
+
+	// TODO: we need to make this public
+	// const remoteURL = "https://raw.githubusercontent.com/shinzonetwork/viewkit/main/tools/default_schema.graphql"
+
+	return nil
 }

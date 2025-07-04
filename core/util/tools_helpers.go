@@ -9,23 +9,30 @@ import (
 	"github.com/shinzonetwork/view-creator/tools"
 )
 
-func EnsureSchemaFileExists() error {
+func EnsureSchemaFilesExist() error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-	schemaPath := filepath.Join(home, ".shinzo", "tools", "schema.graphql")
 
-	_, statErr := os.Stat(schemaPath)
-	if os.IsNotExist(statErr) || isFileEmpty(schemaPath) {
-		content := fmt.Sprintf(
-			"# --- DEFAULT SCHEMAS ---\n\n%s\n\n# --- CUSTOM SCHEMAS ---\n",
-			strings.TrimSpace(tools.DefaultSchema),
-		)
-		if err := os.MkdirAll(filepath.Dir(schemaPath), 0755); err != nil {
-			return err
+	schemaDir := filepath.Join(home, ".shinzo", "tools", "schema")
+	if err := os.MkdirAll(schemaDir, 0755); err != nil {
+		return err
+	}
+
+	defaultPath := filepath.Join(schemaDir, "default_schema.graphql")
+	customPath := filepath.Join(schemaDir, "custom_schema.graphql")
+
+	if _, err := os.Stat(defaultPath); os.IsNotExist(err) || isFileEmpty(defaultPath) {
+		if err := os.WriteFile(defaultPath, []byte(strings.TrimSpace(tools.DefaultSchema)), 0644); err != nil {
+			return fmt.Errorf("failed to write default schema: %w", err)
 		}
-		return os.WriteFile(schemaPath, []byte(content), 0644)
+	}
+
+	if _, err := os.Stat(customPath); os.IsNotExist(err) || isFileEmpty(customPath) {
+		if err := os.WriteFile(customPath, []byte(""), 0644); err != nil {
+			return fmt.Errorf("failed to write custom schema: %w", err)
+		}
 	}
 
 	return nil
