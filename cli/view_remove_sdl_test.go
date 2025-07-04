@@ -32,7 +32,7 @@ func TestRemoveSdlFromView(t *testing.T) {
 		t.Fatalf("view init command failed: %v", err)
 	}
 
-	sdl := `type ReturnedLog { address: string }`
+	sdl := `type ReturnedLog { address: String }`
 	cmd = cli.MakeAddSdlCommand(&viewName)
 
 	var addBuf bytes.Buffer

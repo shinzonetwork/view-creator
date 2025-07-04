@@ -52,7 +52,9 @@ func UpdateSDL(name string, sdl string, s store.ViewStore) (models.View, error) 
 		return models.View{}, err
 	}
 
-	// TODO: validate sdl
+	if err := util.ValidateSDL(sdl); err != nil {
+		return models.View{}, err
+	}
 
 	view.Sdl = &sdl
 
