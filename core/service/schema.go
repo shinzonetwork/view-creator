@@ -118,6 +118,16 @@ func GetSchemaTypeDefinition(name string) (string, error) {
 	return "", fmt.Errorf("type '%s' not found in schema", name)
 }
 
+func ResetCustomSchemas() error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+
+	customPath := filepath.Join(home, ".shinzo", "tools", "schema", "custom_schema.graphql")
+	return os.WriteFile(customPath, []byte(""), 0644)
+}
+
 func formatTypeBlock(typeName, rawBody string) string {
 	rawBody = strings.TrimSpace(rawBody)
 	lines := strings.Split(rawBody, "\n")

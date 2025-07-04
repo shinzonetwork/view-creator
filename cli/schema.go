@@ -22,6 +22,7 @@ func MakeSchemaCommand() *cobra.Command {
 	cmd.AddCommand(MakeSchemaUpdateCommand())
 	cmd.AddCommand(MakeSchemaRemoveCommand())
 	cmd.AddCommand(MakeSchemaInspectCommand())
+	cmd.AddCommand(MakeSchemaResetCommand())
 
 	return cmd
 }
