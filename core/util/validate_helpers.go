@@ -111,6 +111,19 @@ func buildSchemaWithRoot(original string) string {
 	return strings.TrimSpace(original) + "\n\n" + schemaBlock + "\n\n" + rootType
 }
 
+func ValidateSchemaBlock(schema string) error {
+	src := &ast.Source{
+		Name:  "new-type.graphql",
+		Input: schema,
+	}
+
+	_, err := parser.ParseSchema(src)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func formatValidationErrors(errs gqlerror.List) error {
 	if len(errs) == 0 {
 		return nil
