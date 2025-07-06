@@ -9,7 +9,7 @@ import (
 
 func MakeSchemaInspectCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "inspect <name>",
+		Use:   "inspect <type>",
 		Short: "Show the full definition of a schema type",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
