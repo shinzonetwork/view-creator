@@ -39,7 +39,7 @@ func MakeAddLensCommand(viewName *string) *cobra.Command {
 				}
 			}
 
-			store := mustGetContextStore(cmd)
+			store := mustGetContextViewStore(cmd)
 
 			// function to add lens
 			view, err := service.InitLens(*viewName, label, path, argsMap, store)

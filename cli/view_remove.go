@@ -13,7 +13,7 @@ func MakeViewRemoveCommand() *cobra.Command {
 		Use:   "remove",
 		Short: "Remove components to an existing view",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := setContextStore(cmd); err != nil {
+			if err := setContextViewStore(cmd); err != nil {
 				return err
 			}
 

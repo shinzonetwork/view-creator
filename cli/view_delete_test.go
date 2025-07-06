@@ -8,7 +8,7 @@ import (
 
 	"github.com/shinzonetwork/view-creator/cli"
 	"github.com/shinzonetwork/view-creator/core/service"
-	"github.com/shinzonetwork/view-creator/core/store/local"
+	"github.com/shinzonetwork/view-creator/core/view/store/local"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +35,7 @@ func TestDeleteViewSuccess(t *testing.T) {
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("delete command failed: %v", err)
@@ -65,7 +65,7 @@ func TestDeleteViewAlreadyDeletedFails(t *testing.T) {
 		cmd.SetArgs([]string{"testview"})
 		cmd.SetOut(&bytes.Buffer{})
 		cmd.SetErr(&bytes.Buffer{})
-		cmd.SetContext(cli.WithStore(context.Background(), store))
+		cmd.SetContext(cli.WithViewStore(context.Background(), store))
 		return cmd
 	}
 

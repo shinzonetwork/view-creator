@@ -11,8 +11,9 @@ func MakeAddQueryCommand(viewName *string) *cobra.Command {
 		Short: "Add or update the query of the view",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store := mustGetContextStore(cmd)
-			view, err := service.UpdateQuery(*viewName, args[0], store)
+			viewstore := mustGetContextViewStore(cmd)
+			schemastore := mustGetContextSchemaStore(cmd)
+			view, err := service.UpdateQuery(*viewName, args[0], viewstore, schemastore)
 			if err != nil {
 				return err
 			}

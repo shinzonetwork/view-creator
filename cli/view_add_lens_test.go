@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/shinzonetwork/view-creator/cli"
-	"github.com/shinzonetwork/view-creator/core/store/local"
+	"github.com/shinzonetwork/view-creator/core/view/store/local"
 )
 
 func TestAddLensToExistingView(t *testing.T) {
@@ -28,7 +28,7 @@ func TestAddLensToExistingView(t *testing.T) {
 	var initBuf bytes.Buffer
 	cmd.SetOut(&initBuf)
 	cmd.SetErr(&initBuf)
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	err = cmd.Execute()
 	if err != nil {
@@ -50,7 +50,7 @@ func TestAddLensToExistingView(t *testing.T) {
 		"--path", wasmPath,
 		"--args", `{"token": "USDT", "decimals": 6}`,
 	})
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	err = cmd.Execute()
 	if err != nil {

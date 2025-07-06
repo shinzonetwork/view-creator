@@ -10,33 +10,37 @@ import (
 	"time"
 
 	"github.com/shinzonetwork/view-creator/core/models"
-	"github.com/shinzonetwork/view-creator/core/store"
+	"github.com/shinzonetwork/view-creator/core/schema"
+	schemastore "github.com/shinzonetwork/view-creator/core/schema/store"
 	"github.com/shinzonetwork/view-creator/core/util"
+	viewstore "github.com/shinzonetwork/view-creator/core/view/store"
 )
 
-func InitView(name string, s store.ViewStore) (models.View, error) {
+func InitView(name string, s viewstore.ViewStore) (models.View, error) {
 	return s.Create(name, strconv.FormatInt(time.Now().Unix(), 10))
 }
 
-func InspectView(name string, s store.ViewStore) (models.View, error) {
+func InspectView(name string, s viewstore.ViewStore) (models.View, error) {
 	return s.Load(name)
 }
 
-func DeleteView(name string, s store.ViewStore) error {
+func DeleteView(name string, s viewstore.ViewStore) error {
 	return s.Delete(name)
 }
 
-func UpdateQuery(name string, query string, s store.ViewStore) (models.View, error) {
-	view, err := s.Load(name)
+func UpdateQuery(name string, query string, viewstore viewstore.ViewStore, schemastore schemastore.SchemaStore) (models.View, error) {
+	view, err := viewstore.Load(name)
 	if err != nil {
 		return models.View{}, err
 	}
 
-	// TODO: validate query
+	if err := schema.ValidateQuery(schemastore, query); err != nil {
+		return models.View{}, err
+	}
 
 	view.Query = &query
 
-	view, err = s.Save(name, view)
+	view, err = viewstore.Save(name, view)
 	if err != nil {
 		return models.View{}, err
 	}
@@ -44,13 +48,15 @@ func UpdateQuery(name string, query string, s store.ViewStore) (models.View, err
 	return view, nil
 }
 
-func UpdateSDL(name string, sdl string, s store.ViewStore) (models.View, error) {
+func UpdateSDL(name string, sdl string, s viewstore.ViewStore) (models.View, error) {
 	view, err := s.Load(name)
 	if err != nil {
 		return models.View{}, err
 	}
 
-	// TODO: validate sdl
+	if err := util.ValidateSDL(sdl); err != nil {
+		return models.View{}, err
+	}
 
 	view.Sdl = &sdl
 
@@ -62,7 +68,7 @@ func UpdateSDL(name string, sdl string, s store.ViewStore) (models.View, error) 
 	return view, nil
 }
 
-func ClearSDL(name string, s store.ViewStore) (models.View, error) {
+func ClearSDL(name string, s viewstore.ViewStore) (models.View, error) {
 	view, err := s.Load(name)
 	if err != nil {
 		return models.View{}, err
@@ -73,7 +79,7 @@ func ClearSDL(name string, s store.ViewStore) (models.View, error) {
 	return s.Save(name, view)
 }
 
-func ClearQuery(name string, s store.ViewStore) (models.View, error) {
+func ClearQuery(name string, s viewstore.ViewStore) (models.View, error) {
 	view, err := s.Load(name)
 	if err != nil {
 		return models.View{}, err
@@ -84,13 +90,12 @@ func ClearQuery(name string, s store.ViewStore) (models.View, error) {
 	return s.Save(name, view)
 }
 
-func InitLens(name string, label string, path string, args map[string]any, s store.ViewStore) (models.View, error) {
+func InitLens(name string, label string, path string, args map[string]any, s viewstore.ViewStore) (models.View, error) {
 	view, err := s.Load(name)
 	if err != nil {
 		return models.View{}, err
 	}
 
-	// Check if lens already exists
 	for _, lens := range view.Transform.Lenses {
 		if lens.Label == label {
 			return models.View{}, fmt.Errorf(`lens with label "%s" already exists`, label)
@@ -99,7 +104,6 @@ func InitLens(name string, label string, path string, args map[string]any, s sto
 
 	var file io.ReadCloser
 
-	// Check if it's a URL
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
 		resp, err := http.Get(path)
 		if err != nil {
@@ -123,12 +127,10 @@ func InitLens(name string, label string, path string, args map[string]any, s sto
 		return models.View{}, fmt.Errorf("invalid wasm file: %w", err)
 	}
 
-	// Upload the asset
 	if _, err := s.UploadAsset(name, label, file); err != nil {
 		return models.View{}, fmt.Errorf("failed to upload asset: %w", err)
 	}
 
-	// Add the new lens with label and args
 	newLens := models.Lens{
 		Label:     label,
 		Arguments: args,
@@ -136,11 +138,10 @@ func InitLens(name string, label string, path string, args map[string]any, s sto
 	}
 	view.Transform.Lenses = append(view.Transform.Lenses, newLens)
 
-	// Save the updated view
 	return s.Save(name, view)
 }
 
-func RemoveLens(name string, label string, s store.ViewStore) (models.View, error) {
+func RemoveLens(name string, label string, s viewstore.ViewStore) (models.View, error) {
 	view, err := s.Load(name)
 	if err != nil {
 		return models.View{}, err
@@ -154,7 +155,7 @@ func RemoveLens(name string, label string, s store.ViewStore) (models.View, erro
 	for _, lens := range view.Transform.Lenses {
 		if lens.Label == label {
 			found = true
-			continue // skip the one we want to remove
+			continue
 		}
 		updatedLenses = append(updatedLenses, lens)
 	}
@@ -163,14 +164,11 @@ func RemoveLens(name string, label string, s store.ViewStore) (models.View, erro
 		return models.View{}, fmt.Errorf(`lens with label "%s" not found`, label)
 	}
 
-	// Update view with remaining lenses
 	view.Transform.Lenses = updatedLenses
 
-	// Delete the wasm file associated with the lens
 	if err := s.DeleteAsset(name, label); err != nil {
 		return models.View{}, fmt.Errorf("failed to delete lens asset: %w", err)
 	}
 
-	// Save and return the updated view
 	return s.Save(name, view)
 }

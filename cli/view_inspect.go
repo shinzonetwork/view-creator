@@ -14,7 +14,7 @@ func MakeViewInspectCommand() *cobra.Command {
 		Short: "Inspect a saved view",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			storeImpl := mustGetContextStore(cmd)
+			storeImpl := mustGetContextViewStore(cmd)
 			view, err := service.InspectView(args[0], storeImpl)
 			if err != nil {
 				return err

@@ -18,7 +18,7 @@ func MakeRemoveLensCommand(viewName *string) *cobra.Command {
 				return fmt.Errorf("--label is required")
 			}
 
-			store := mustGetContextStore(cmd)
+			store := mustGetContextViewStore(cmd)
 
 			view, err := service.RemoveLens(*viewName, label, store)
 			if err != nil {

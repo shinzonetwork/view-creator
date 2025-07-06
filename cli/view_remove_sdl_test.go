@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/shinzonetwork/view-creator/cli"
-	"github.com/shinzonetwork/view-creator/core/store/local"
+	"github.com/shinzonetwork/view-creator/core/view/store/local"
 )
 
 func TestRemoveSdlFromView(t *testing.T) {
@@ -26,20 +26,20 @@ func TestRemoveSdlFromView(t *testing.T) {
 	var initBuf bytes.Buffer
 	cmd.SetOut(&initBuf)
 	cmd.SetErr(&initBuf)
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("view init command failed: %v", err)
 	}
 
-	sdl := `type ReturnedLog { address: string }`
+	sdl := `type ReturnedLog { address: String }`
 	cmd = cli.MakeAddSdlCommand(&viewName)
 
 	var addBuf bytes.Buffer
 	cmd.SetOut(&addBuf)
 	cmd.SetErr(&addBuf)
 	cmd.SetArgs([]string{sdl})
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("add SDL command failed: %v", err)
@@ -50,7 +50,7 @@ func TestRemoveSdlFromView(t *testing.T) {
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("remove SDL command failed: %v", err)

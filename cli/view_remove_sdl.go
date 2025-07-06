@@ -10,7 +10,7 @@ func MakeRemoveSdlCommand(viewName *string) *cobra.Command {
 		Use:   "sdl",
 		Short: "Remove the SDL from the view",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store := mustGetContextStore(cmd)
+			store := mustGetContextViewStore(cmd)
 
 			view, err := service.ClearSDL(*viewName, store)
 			if err != nil {

@@ -10,7 +10,7 @@ func MakeRemoveQueryCommand(viewName *string) *cobra.Command {
 		Use:   "query",
 		Short: "Remove the query from the view",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store := mustGetContextStore(cmd)
+			store := mustGetContextViewStore(cmd)
 
 			view, err := service.ClearQuery(*viewName, store)
 			if err != nil {

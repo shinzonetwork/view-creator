@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/shinzonetwork/view-creator/cli"
-	"github.com/shinzonetwork/view-creator/core/store/local"
+	"github.com/shinzonetwork/view-creator/core/view/store/local"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ func TestInitViewDirectWithTempStore(t *testing.T) {
 	cmd.SetErr(&buf)
 
 	// Inject store into context
-	ctx := cli.WithStore(context.Background(), store)
+	ctx := cli.WithViewStore(context.Background(), store)
 	cmd.SetContext(ctx)
 
 	err = cmd.Execute()
@@ -65,7 +65,7 @@ func TestInitViewDuplicateFails(t *testing.T) {
 		cmd := cli.MakeViewInitCommand()
 		cmd.SetOut(&bytes.Buffer{})
 		cmd.SetErr(&bytes.Buffer{})
-		cmd.SetContext(cli.WithStore(context.Background(), store))
+		cmd.SetContext(cli.WithViewStore(context.Background(), store))
 		return cmd
 	}
 

@@ -11,7 +11,7 @@ func MakeViewDeleteCommand() *cobra.Command {
 		Short: "Delete a saved view",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			storeImpl := mustGetContextStore(cmd)
+			storeImpl := mustGetContextViewStore(cmd)
 			err := service.DeleteView(args[0], storeImpl)
 			if err != nil {
 				return err

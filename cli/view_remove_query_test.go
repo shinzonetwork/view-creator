@@ -7,13 +7,19 @@ import (
 	"testing"
 
 	"github.com/shinzonetwork/view-creator/cli"
-	"github.com/shinzonetwork/view-creator/core/store/local"
+	"github.com/shinzonetwork/view-creator/core/schema/store/fileschema"
+	"github.com/shinzonetwork/view-creator/core/view/store/local"
 )
 
 func TestRemoveQueryFromView(t *testing.T) {
 	tempDir := t.TempDir()
 
 	store, err := local.NewLocalStore(tempDir)
+	if err != nil {
+		t.Fatalf("failed to create temp store: %v", err)
+	}
+
+	schemastore, err := fileschema.NewFileSchemaStore(tempDir)
 	if err != nil {
 		t.Fatalf("failed to create temp store: %v", err)
 	}
@@ -26,7 +32,7 @@ func TestRemoveQueryFromView(t *testing.T) {
 	var initBuf bytes.Buffer
 	cmd.SetOut(&initBuf)
 	cmd.SetErr(&initBuf)
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	err = cmd.Execute()
 	if err != nil {
@@ -40,7 +46,10 @@ func TestRemoveQueryFromView(t *testing.T) {
 	cmd.SetOut(&addBuf)
 	cmd.SetErr(&addBuf)
 	cmd.SetArgs([]string{query})
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	ctx := context.Background()
+	ctx = cli.WithViewStore(ctx, store)
+	ctx = cli.WithSchemaStore(ctx, schemastore)
+	cmd.SetContext(ctx)
 
 	err = cmd.Execute()
 	if err != nil {
@@ -52,7 +61,7 @@ func TestRemoveQueryFromView(t *testing.T) {
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	err = cmd.Execute()
 	if err != nil {
