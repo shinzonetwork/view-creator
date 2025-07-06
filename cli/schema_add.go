@@ -14,8 +14,9 @@ func MakeSchemaAddCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			schema := args[0]
+			schemastore := mustGetContextSchemaStore(cmd)
 
-			if err := service.AddCustomSchema(schema); err != nil {
+			if err := service.AddCustomSchema(schemastore, schema); err != nil {
 				return fmt.Errorf("failed to add schema: %w", err)
 			}
 

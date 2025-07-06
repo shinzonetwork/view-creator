@@ -8,7 +8,7 @@ import (
 
 	"github.com/shinzonetwork/view-creator/cli"
 	"github.com/shinzonetwork/view-creator/core/service"
-	"github.com/shinzonetwork/view-creator/core/store/local"
+	"github.com/shinzonetwork/view-creator/core/view/store/local"
 )
 
 func TestViewInspectCommandSuccess(t *testing.T) {
@@ -31,7 +31,7 @@ func TestViewInspectCommandSuccess(t *testing.T) {
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	err = cmd.Execute()
 	if err != nil {
@@ -69,7 +69,7 @@ func TestViewInspectCommandNotFound(t *testing.T) {
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	err = cmd.Execute()
 	if err == nil {

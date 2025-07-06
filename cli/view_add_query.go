@@ -2,7 +2,6 @@ package cli
 
 import (
 	"github.com/shinzonetwork/view-creator/core/service"
-	"github.com/shinzonetwork/view-creator/core/util"
 	"github.com/spf13/cobra"
 )
 
@@ -12,11 +11,9 @@ func MakeAddQueryCommand(viewName *string) *cobra.Command {
 		Short: "Add or update the query of the view",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := util.EnsureSchemaFilesExist(); err != nil {
-				return err
-			}
-			store := mustGetContextStore(cmd)
-			view, err := service.UpdateQuery(*viewName, args[0], store)
+			viewstore := mustGetContextViewStore(cmd)
+			schemastore := mustGetContextSchemaStore(cmd)
+			view, err := service.UpdateQuery(*viewName, args[0], viewstore, schemastore)
 			if err != nil {
 				return err
 			}

@@ -13,7 +13,11 @@ func MakeViewAddCommand() *cobra.Command {
 		Use:   "add",
 		Short: "Add components to an existing view",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := setContextStore(cmd); err != nil {
+			if err := setContextViewStore(cmd); err != nil {
+				return err
+			}
+
+			if err := setContextSchemaStore(cmd); err != nil {
 				return err
 			}
 

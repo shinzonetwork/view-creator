@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/shinzonetwork/view-creator/core/models"
-	"github.com/shinzonetwork/view-creator/core/store"
-	"github.com/shinzonetwork/view-creator/core/store/local"
+	"github.com/shinzonetwork/view-creator/core/view/store"
+	"github.com/shinzonetwork/view-creator/core/view/store/local"
 )
 
 func TestLocalStoreInitCreateDir(t *testing.T) {

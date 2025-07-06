@@ -12,7 +12,9 @@ func MakeSchemaResetCommand() *cobra.Command {
 		Use:   "reset",
 		Short: "Clear all custom schema types (does not affect defaults)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := service.ResetCustomSchemas(); err != nil {
+			schemastore := mustGetContextSchemaStore(cmd)
+
+			if err := service.ResetCustomSchemas(schemastore); err != nil {
 				return fmt.Errorf("failed to reset custom schemas: %w", err)
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "Custom schema cleared.")

@@ -14,8 +14,9 @@ func MakeSchemaRemoveCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
+			schemastore := mustGetContextSchemaStore(cmd)
 
-			if err := service.RemoveCustomSchema(name); err != nil {
+			if err := service.RemoveCustomSchema(schemastore, name); err != nil {
 				return fmt.Errorf("failed to remove schema: %w", err)
 			}
 

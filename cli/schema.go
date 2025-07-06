@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"github.com/shinzonetwork/view-creator/core/util"
 	"github.com/spf13/cobra"
 )
 
@@ -10,9 +9,10 @@ func MakeSchemaCommand() *cobra.Command {
 		Use:   "schema",
 		Short: "Manage custom models in the Viewkit schema",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := util.EnsureSchemaFilesExist(); err != nil {
+			if err := setContextSchemaStore(cmd); err != nil {
 				return err
 			}
+
 			return nil
 		},
 	}

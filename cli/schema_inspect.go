@@ -9,11 +9,13 @@ import (
 
 func MakeSchemaInspectCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "inspect <type-name>",
+		Use:   "inspect <name>",
 		Short: "Show the full definition of a schema type",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			def, err := service.GetSchemaTypeDefinition(args[0])
+			schemastore := mustGetContextSchemaStore(cmd)
+
+			def, err := service.GetSchemaTypeDefinition(schemastore, args[0])
 			if err != nil {
 				return err
 			}

@@ -12,7 +12,9 @@ func MakeSchemaListCommand() *cobra.Command {
 		Use:   "list",
 		Short: "List all schema types in the Viewkit schema (default and custom)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			defaults, customs, err := service.ListSchemas()
+			schemastore := mustGetContextSchemaStore(cmd)
+
+			defaults, customs, err := service.ListSchemas(schemastore)
 			if err != nil {
 				return err
 			}

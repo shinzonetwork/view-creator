@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/shinzonetwork/view-creator/core/models"
-	"github.com/shinzonetwork/view-creator/core/store"
+	"github.com/shinzonetwork/view-creator/core/view/store"
 )
 
 type LocalStore struct {

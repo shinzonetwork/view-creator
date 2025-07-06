@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/shinzonetwork/view-creator/cli"
-	"github.com/shinzonetwork/view-creator/core/store/local"
+	"github.com/shinzonetwork/view-creator/core/view/store/local"
 )
 
 func TestAddSdlToExistingView(t *testing.T) {
@@ -29,7 +29,7 @@ func TestAddSdlToExistingView(t *testing.T) {
 	cmd.SetErr(&initBuf)
 
 	// Inject store into context
-	ctx := cli.WithStore(context.Background(), store)
+	ctx := cli.WithViewStore(context.Background(), store)
 	cmd.SetContext(ctx)
 
 	err = cmd.Execute()
@@ -44,7 +44,7 @@ func TestAddSdlToExistingView(t *testing.T) {
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
 	cmd.SetArgs([]string{sdl})
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	err = cmd.Execute()
 	if err != nil {
@@ -87,7 +87,7 @@ func TestUpdateSdlOfExistingView(t *testing.T) {
 	var initBuf bytes.Buffer
 	cmd.SetOut(&initBuf)
 	cmd.SetErr(&initBuf)
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	err = cmd.Execute()
 	if err != nil {
@@ -101,7 +101,7 @@ func TestUpdateSdlOfExistingView(t *testing.T) {
 	cmd.SetOut(&firstBuf)
 	cmd.SetErr(&firstBuf)
 	cmd.SetArgs([]string{initialSDL})
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	err = cmd.Execute()
 	if err != nil {
@@ -116,7 +116,7 @@ func TestUpdateSdlOfExistingView(t *testing.T) {
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
 	cmd.SetArgs([]string{updatedSDL})
-	cmd.SetContext(cli.WithStore(context.Background(), store))
+	cmd.SetContext(cli.WithViewStore(context.Background(), store))
 
 	err = cmd.Execute()
 	if err != nil {

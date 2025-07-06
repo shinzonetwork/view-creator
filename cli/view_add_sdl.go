@@ -11,7 +11,7 @@ func MakeAddSdlCommand(viewName *string) *cobra.Command {
 		Short: "Add or update the sdl of the view",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store := mustGetContextStore(cmd)
+			store := mustGetContextViewStore(cmd)
 			view, err := service.UpdateSDL(*viewName, args[0], store)
 			if err != nil {
 				return err

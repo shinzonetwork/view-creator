@@ -14,7 +14,7 @@ func MakeViewInitCommand() *cobra.Command {
 		Short: "Initialize a new view",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			storeImpl := mustGetContextStore(cmd)
+			storeImpl := mustGetContextViewStore(cmd)
 			view, err := service.InitView(args[0], storeImpl)
 			if err != nil {
 				return err

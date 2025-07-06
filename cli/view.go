@@ -10,7 +10,7 @@ func MakeViewCommand() *cobra.Command {
 		Short: "Commands for working with views",
 		Long:  "Use this command group to create, delete, and manage views in Viewkit.",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
-			if err := setContextStore(cmd); err != nil {
+			if err := setContextViewStore(cmd); err != nil {
 				return err
 			}
 			return nil

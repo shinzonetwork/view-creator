@@ -7,33 +7,54 @@ import (
 	"time"
 
 	"github.com/shinzonetwork/view-creator/core/models"
-	"github.com/shinzonetwork/view-creator/core/store"
-	"github.com/shinzonetwork/view-creator/core/store/local"
+	schemastore "github.com/shinzonetwork/view-creator/core/schema/store"
+	"github.com/shinzonetwork/view-creator/core/schema/store/fileschema"
+	viewstore "github.com/shinzonetwork/view-creator/core/view/store"
+	"github.com/shinzonetwork/view-creator/core/view/store/local"
 	"github.com/spf13/cobra"
 )
 
 type contextKey string
 
 var (
-	storeContextKey = contextKey("store")
+	viewStoreContextKey   = contextKey("view")
+	schemaStoreContextKey = contextKey("schema")
 )
 
-func mustGetContextStore(cmd *cobra.Command) store.ViewStore {
-	return cmd.Context().Value(storeContextKey).(store.ViewStore)
+func mustGetContextViewStore(cmd *cobra.Command) viewstore.ViewStore {
+	return cmd.Context().Value(viewStoreContextKey).(viewstore.ViewStore)
 }
 
-func setContextStore(cmd *cobra.Command) error {
+func mustGetContextSchemaStore(cmd *cobra.Command) schemastore.SchemaStore {
+	return cmd.Context().Value(schemaStoreContextKey).(schemastore.SchemaStore)
+}
+
+func setContextViewStore(cmd *cobra.Command) error {
 	store, err := local.NewLocalStore()
 	if err != nil {
 		return err
 	}
-	ctx := context.WithValue(cmd.Context(), storeContextKey, store)
+	ctx := context.WithValue(cmd.Context(), viewStoreContextKey, store)
 	cmd.SetContext(ctx)
 	return nil
 }
 
-func WithStore(ctx context.Context, s store.ViewStore) context.Context {
-	return context.WithValue(ctx, storeContextKey, s)
+func setContextSchemaStore(cmd *cobra.Command) error {
+	store, err := fileschema.NewFileSchemaStore()
+	if err != nil {
+		return err
+	}
+	ctx := context.WithValue(cmd.Context(), schemaStoreContextKey, store)
+	cmd.SetContext(ctx)
+	return nil
+}
+
+func WithViewStore(ctx context.Context, s viewstore.ViewStore) context.Context {
+	return context.WithValue(ctx, viewStoreContextKey, s)
+}
+
+func WithSchemaStore(ctx context.Context, s schemastore.SchemaStore) context.Context {
+	return context.WithValue(ctx, schemaStoreContextKey, s)
 }
 
 func printViewPretty(cmd *cobra.Command, view models.View, verbose bool, jsonOutput bool) {
