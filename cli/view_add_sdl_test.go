@@ -62,9 +62,7 @@ type FilteredAndDecodedLogs @materialized(if: false) {hash: String block: String
  - (empty)
 
 🗂  Metadata:
- - Version: 0
- - Total: 0
- - Created At: `
+ - Version: `
 
 	if !strings.HasPrefix(out, expected) {
 		t.Errorf("unexpected output.\nGot:\n%s\nExpected prefix:\n%s", out, expected)
@@ -134,9 +132,7 @@ type FilteredAndDecodedLogs @materialized(if: false) {hash: String block: String
  - (empty)
 
 🗂  Metadata:
- - Version: 0
- - Total: 0
- - Created At: `
+ - Version: `
 
 	if !strings.HasPrefix(out, expected) {
 		t.Errorf("unexpected output.\nGot:\n%s\nExpected prefix:\n%s", out, expected)

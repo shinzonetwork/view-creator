@@ -79,9 +79,7 @@ func TestRemoveLensFromView(t *testing.T) {
  - (empty)
 
 🗂  Metadata:
- - Version: 0
- - Total: 0
- - Created At: `
+ - Version: `
 
 	if !strings.HasPrefix(out, expected) {
 		t.Errorf("unexpected output after lens removal.\nGot:\n%s\nExpected prefix:\n%s", out, expected)

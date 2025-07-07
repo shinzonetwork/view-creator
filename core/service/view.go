@@ -172,3 +172,7 @@ func RemoveLens(name string, label string, s viewstore.ViewStore) (models.View, 
 
 	return s.Save(name, view)
 }
+
+func Rollback(name string, version int, s viewstore.ViewStore) (models.View, error) {
+	return s.Rollback(name, version)
+}

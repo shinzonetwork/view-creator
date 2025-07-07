@@ -1,5 +1,7 @@
 package models
 
 type Revision struct {
-	Diff string `json:"diff"`
+	Version   int    `json:"version"`
+	Timestamp string `json:"timestamp"`
+	Diff      string `json:"diff"`
 }

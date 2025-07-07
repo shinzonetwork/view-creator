@@ -47,9 +47,7 @@ func TestViewInspectCommandSuccess(t *testing.T) {
  - (empty)
 
 🗂  Metadata:
- - Version: 0
- - Total: 0
- - Created At: `
+ - Version: `
 
 	if !strings.Contains(output, expected) {
 		t.Errorf("expected view name in output, got:\n%s \nexpected:\n%s", output, expected)

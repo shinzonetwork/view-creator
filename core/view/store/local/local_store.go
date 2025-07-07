@@ -6,7 +6,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/shinzonetwork/view-creator/core/models"
 	"github.com/shinzonetwork/view-creator/core/view/store"
 )
@@ -158,6 +161,19 @@ func (s *LocalStore) Save(name string, view models.View) (models.View, error) {
 		return models.View{}, fmt.Errorf("failed to check if view exists: %w", err)
 	}
 
+	// Load the current state (before mutation)
+	current, err := s.Load(name)
+	if err != nil {
+		return models.View{}, fmt.Errorf("failed to load current view before saving: %w", err)
+	}
+
+	// Generate revision snapshot and update metadata
+	updatedMeta, err := MakeRevisionSnapshot(current.Metadata, current, view)
+	if err != nil {
+		return models.View{}, fmt.Errorf("failed to generate revision: %w", err)
+	}
+	view.Metadata = updatedMeta
+
 	viewFilePath := filepath.Join(folderBasePath, "view.json")
 	tempFilePath := filepath.Join(folderBasePath, "view.tmp.json")
 
@@ -227,4 +243,99 @@ func (s *LocalStore) DeleteAsset(viewName string, label string) error {
 		return fmt.Errorf("failed to delete asset: %w", err)
 	}
 	return nil
+}
+
+func (s *LocalStore) Rollback(viewName string, targetVersion int) (models.View, error) {
+	view, err := s.Load(viewName)
+	if err != nil {
+		return models.View{}, err
+	}
+
+	var patchJSON []byte
+	found := false
+	for _, rev := range view.Metadata.Revisions {
+		if rev.Version == targetVersion {
+			patchJSON = []byte(rev.Diff)
+			found = true
+			break
+		}
+	}
+	if !found {
+		return models.View{}, fmt.Errorf("version %d not found", targetVersion)
+	}
+
+	currentJSON, err := json.Marshal(view)
+	if err != nil {
+		return models.View{}, err
+	}
+	meta := view.Metadata
+	meta, err = MakeRevisionSnapshot(meta, view, view)
+	if err != nil {
+		return models.View{}, err
+	}
+
+	rolledBackJSON, err := jsonpatch.MergePatch(currentJSON, patchJSON)
+	if err != nil {
+		return models.View{}, fmt.Errorf("failed to apply patch: %w", err)
+	}
+
+	var rolledBackView models.View
+	if err := json.Unmarshal(rolledBackJSON, &rolledBackView); err != nil {
+		return models.View{}, fmt.Errorf("failed to unmarshal rolled back view: %w", err)
+	}
+
+	rolledBackView.Metadata = meta
+
+	return s.Save(viewName, rolledBackView)
+}
+
+func MakeRevisionSnapshot(meta models.Metadata, oldView any, newView any) (models.Metadata, error) {
+	oldJSON, err := json.Marshal(oldView)
+	if err != nil {
+		return meta, fmt.Errorf("failed to marshal old view: %w", err)
+	}
+
+	newJSON, err := json.Marshal(newView)
+	if err != nil {
+		return meta, fmt.Errorf("failed to marshal new view: %w", err)
+	}
+
+	patch, err := jsonpatch.CreateMergePatch(newJSON, oldJSON)
+	if err != nil {
+		return meta, fmt.Errorf("failed to create patch: %w", err)
+	}
+
+	if string(patch) == "{}" {
+		return meta, nil
+	}
+
+	revision := models.Revision{
+		Version:   meta.Version,
+		Timestamp: strconv.FormatInt(time.Now().Unix(), 10),
+		Diff:      string(patch),
+	}
+
+	meta.Revisions = append(meta.Revisions, revision)
+	meta.Version++
+	meta.Total++
+	meta.UpdatedAt = strconv.FormatInt(time.Now().Unix(), 10)
+
+	return meta, nil
+}
+
+func ApplyPatch(original any, patchStr string) (any, error) {
+	originalJSON, _ := json.Marshal(original)
+	patch, err := jsonpatch.DecodePatch([]byte(patchStr))
+	if err != nil {
+		return nil, err
+	}
+	modified, err := patch.Apply(originalJSON)
+	if err != nil {
+		return nil, err
+	}
+	var result any
+	if err := json.Unmarshal(modified, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

@@ -34,7 +34,9 @@ func TestViewJSONMarshaling(t *testing.T) {
 	}
 
 	revisionA := models.Revision{
-		Diff: "{\"name\":\"example\",\"query\":null,\"sdl\":null,\"transform\":{\"lenses\":[]},\"metadata\":{\"_v\":0,\"_t\":0,\"revisions\":[],\"createdAt\":\"1749746283\",\"updatedAt\":\"1749746283\"}}",
+		Version:   0,
+		Timestamp: "",
+		Diff:      "{\"name\":\"example\",\"query\":null,\"sdl\":null,\"transform\":{\"lenses\":[]},\"metadata\":{\"_v\":0,\"_t\":0,\"revisions\":[],\"createdAt\":\"1749746283\",\"updatedAt\":\"1749746283\"}}",
 	}
 
 	metadata := models.Metadata{
@@ -58,7 +60,7 @@ func TestViewJSONMarshaling(t *testing.T) {
 		t.Fatalf("Failed to marshal view: %v", err)
 	}
 
-	expected := `{"name":"example","query":"Log {address topics data transactionHash blockNumber}","sdl":"type FilteredAndDecodedLogs @materialized(if: false) {hash: String block: String address: String signature: String }","transform":{"lenses":[{"label":"filter_usdt","path":"assets/lens_filter_usdt.wasm","arguments":{"src":"address","value":"0xdac17f958d2ee523a2206206994597c13d831ec7"}},{"label":"decode_inputs","path":"assets/lens_decode_inputs.wasm","arguments":{"abi":"{\"inputs\":[{\"name\":\"_spender\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}]}"}}]},"metadata":{"_v":2,"_t":2,"revisions":[{"diff":"{\"name\":\"example\",\"query\":null,\"sdl\":null,\"transform\":{\"lenses\":[]},\"metadata\":{\"_v\":0,\"_t\":0,\"revisions\":[],\"createdAt\":\"1749746283\",\"updatedAt\":\"1749746283\"}}"}],"createdAt":"1749746283","updatedAt":"1749748820"}}`
+	expected := `{"name":"example","query":"Log {address topics data transactionHash blockNumber}","sdl":"type FilteredAndDecodedLogs @materialized(if: false) {hash: String block: String address: String signature: String }","transform":{"lenses":[{"label":"filter_usdt","path":"assets/lens_filter_usdt.wasm","arguments":{"src":"address","value":"0xdac17f958d2ee523a2206206994597c13d831ec7"}},{"label":"decode_inputs","path":"assets/lens_decode_inputs.wasm","arguments":{"abi":"{\"inputs\":[{\"name\":\"_spender\",\"type\":\"address\"},{\"name\":\"_value\",\"type\":\"uint256\"}]}"}}]},"metadata":{"_v":2,"_t":2,"revisions":[{"version":0,"timestamp":"","diff":"{\"name\":\"example\",\"query\":null,\"sdl\":null,\"transform\":{\"lenses\":[]},\"metadata\":{\"_v\":0,\"_t\":0,\"revisions\":[],\"createdAt\":\"1749746283\",\"updatedAt\":\"1749746283\"}}"}],"createdAt":"1749746283","updatedAt":"1749748820"}}`
 
 	if string(jsonBytes) != expected {
 		t.Errorf("Unexpected Json Mismatch \n Expected:\n %s \n Got: \n %s", expected, string(jsonBytes))
