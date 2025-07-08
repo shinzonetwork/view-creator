@@ -51,6 +51,20 @@ func NewFileSchemaStore(dir ...string) (*FileSchemaStore, error) {
 	return &FileSchemaStore{BasePath: base}, nil
 }
 
+func (s *FileSchemaStore) Load() (string, error) {
+	defaultSchema, err := s.LoadDefault()
+	if err != nil {
+		return "", fmt.Errorf("failed to load default schema: %w", err)
+	}
+
+	customSchema, err := s.LoadCustom()
+	if err != nil {
+		return "", fmt.Errorf("failed to load custom schema: %w", err)
+	}
+
+	return defaultSchema + "\n\n" + customSchema, nil
+}
+
 func (s *FileSchemaStore) LoadDefault() (string, error) {
 	return read(filepath.Join(s.BasePath, "default_schema.graphql"))
 }

@@ -14,6 +14,7 @@ require (
 	github.com/spf13/cobra v1.9.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/vektah/gqlparser/v2 v2.5.30 // indirect
+	github.com/wasmerio/wasmer-go v1.0.4 // indirect
 	github.com/yudai/gojsondiff v1.0.0 // indirect
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
 	golang.org/x/sys v0.21.0 // indirect

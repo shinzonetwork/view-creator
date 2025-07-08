@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -102,35 +103,41 @@ func InitLens(name string, label string, path string, args map[string]any, s vie
 		}
 	}
 
-	var file io.ReadCloser
-
+	// Read file into memory
+	var wasmBytes []byte
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
 		resp, err := http.Get(path)
 		if err != nil {
 			return models.View{}, fmt.Errorf("failed to download from URL: %w", err)
 		}
+		defer resp.Body.Close()
+
 		if resp.StatusCode != http.StatusOK {
 			return models.View{}, fmt.Errorf("download failed with HTTP %d", resp.StatusCode)
 		}
-		file = resp.Body
-	} else {
-		localFile, err := os.Open(path)
-		if err != nil {
-			return models.View{}, fmt.Errorf("failed to open local file: %w", err)
-		}
-		file = localFile
-	}
-	defer file.Close()
 
-	_, err = util.IsValidWasm(file)
-	if err != nil {
+		wasmBytes, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return models.View{}, fmt.Errorf("failed to read wasm from response: %w", err)
+		}
+	} else {
+		wasmBytes, err = os.ReadFile(path)
+		if err != nil {
+			return models.View{}, fmt.Errorf("failed to read local wasm file: %w", err)
+		}
+	}
+
+	// Validate WASM
+	if _, err := util.IsValidWasm(bytes.NewReader(wasmBytes)); err != nil {
 		return models.View{}, fmt.Errorf("invalid wasm file: %w", err)
 	}
 
-	if _, err := s.UploadAsset(name, label, file); err != nil {
+	// Upload asset
+	if _, err := s.UploadAsset(name, label, bytes.NewReader(wasmBytes)); err != nil {
 		return models.View{}, fmt.Errorf("failed to upload asset: %w", err)
 	}
 
+	// Add to view
 	newLens := models.Lens{
 		Label:     label,
 		Arguments: args,
