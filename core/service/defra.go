@@ -56,14 +56,15 @@ func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, sch
 		return fmt.Errorf("failed to create temp rootdir: %w", err)
 	}
 
-	libPath := "/Users/daniel/go/pkg/mod/github.com/wasmerio/wasmer-go@v1.0.4/wasmer/packaged/lib/darwin-aarch64"
 	env := append(os.Environ(),
-		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", libPath),
+		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", os.Getenv("WASMER_LIB_PATH")),
 		"DEFRA_KEYRING_SECRET=1234",
 	)
 
 	defraCmd = exec.Command(bin, "start", "--rootdir", rootDir)
 	defraCmd.Env = env
+	// defraCmd.Stdout = os.Stdout
+	// defraCmd.Stderr = os.Stderr
 
 	if err := defraCmd.Start(); err != nil {
 		return fmt.Errorf("failed to start defradb: %w", err)
@@ -94,16 +95,114 @@ func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, sch
 
 	fmt.Println("✅ Applying View ...")
 
-	_, err = SendViewToDefra(ctx, "http://127.0.0.1:9181", viewJson)
+	result, err := SendViewToDefra(ctx, "http://127.0.0.1:9181", viewJson)
 	if err != nil {
 		return cleanupDefra("failed to send view", err)
 	}
+
+	collection, err := extractCollectionName(result)
+	if err != nil {
+		return cleanupDefra("failed to send view", err)
+	}
+
+	err = RefreshView(ctx, "http://127.0.0.1:9181", collection)
+	if err != nil {
+		return cleanupDefra("failed to send view", err)
+	}
+
 	fmt.Println("✅ View Successfully Applied")
 
 	fmt.Println("🧪 Visit the DefraDB GraphQL Playground at http://127.0.0.1:9181/")
 	fmt.Println("📦 Press Ctrl+C to stop...")
 
 	<-ctx.Done()
+	return shutdownDefra()
+}
+
+func StartLocalNodeAndTestView(name string, viewstore viewstore.ViewStore, schemastore schemastore.SchemaStore) error {
+	ctx := context.Background()
+
+	fmt.Println("🔍 Loading view...")
+	view, err := viewstore.Load(name)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to load view: %w", err)
+	}
+
+	viewJson, err := ConvertViewToDefraJson(view)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to convert view to JSON: %w", err)
+	}
+
+	fmt.Println("⚙️  Ensuring DefraDB binary...")
+	bin, err := EnsureDefraBinary("0.18.0")
+	if err != nil {
+		return fmt.Errorf("❌ Failed to ensure DefraDB binary: %w", err)
+	}
+
+	fmt.Println("📁 Creating temporary root directory...")
+	rootDir, err := os.MkdirTemp("", "defradb-root-*")
+	if err != nil {
+		return fmt.Errorf("❌ Failed to create temp rootdir: %w", err)
+	}
+
+	env := append(os.Environ(),
+		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", os.Getenv("WASMER_LIB_PATH")),
+		"DEFRA_KEYRING_SECRET=1234",
+	)
+
+	fmt.Println("🚀 Starting DefraDB...")
+	defraCmd = exec.Command(bin, "start", "--rootdir", rootDir)
+	defraCmd.Env = env
+
+	if err := defraCmd.Start(); err != nil {
+		return fmt.Errorf("❌ Failed to start DefraDB: %w", err)
+	}
+
+	fmt.Println("⏳ Waiting for DefraDB to boot...")
+	time.Sleep(2 * time.Second)
+	fmt.Println("✅ DefraDB booted")
+
+	fmt.Println("📦 Applying schema...")
+	schemaContent, err := schemastore.Load()
+	if err != nil {
+		return cleanupDefra("❌ Failed to load schema", err)
+	}
+
+	schemaCmd := exec.Command(bin, "client", "schema", "add", schemaContent, "--rootdir", rootDir)
+	schemaCmd.Env = env
+
+	if err := schemaCmd.Run(); err != nil {
+		return cleanupDefra("❌ Failed to apply schema", err)
+	}
+	fmt.Println("✅ Schema applied")
+
+	fmt.Println("📨 Inserting test data...")
+	if err := InsertDataToDefra(ctx, GQL); err != nil {
+		return cleanupDefra("❌ Failed to insert data", err)
+	}
+	fmt.Println("✅ Data inserted")
+
+	fmt.Println("🧠 Applying view...")
+	result, err := SendViewToDefra(ctx, "http://127.0.0.1:9181", viewJson)
+	if err != nil {
+		return cleanupDefra("❌ Failed to apply view", err)
+	}
+	fmt.Println("✅ View applied")
+
+	fmt.Println("🔎 Extracting collection name...")
+	collection, err := extractCollectionName(result)
+	if err != nil {
+		return cleanupDefra("❌ Failed to extract collection name", err)
+	}
+
+	fmt.Println("♻️  Refreshing view...")
+	err = RefreshView(ctx, "http://127.0.0.1:9181", collection)
+	if err != nil {
+		return cleanupDefra("❌ Failed to refresh view", err)
+	}
+	fmt.Println("✅ View refreshed")
+
+	fmt.Println("✅ Test flow completed successfully. Shutting down...")
 	return shutdownDefra()
 }
 
@@ -158,6 +257,52 @@ func SendViewToDefra(ctx context.Context, defraURL string, jsonPayload string) (
 	}
 
 	return string(body), nil
+}
+
+func RefreshView(ctx context.Context, defraURL string, collection string) error {
+	url := fmt.Sprintf("%s/api/v0/view/refresh?name=%s", defraURL, collection)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create refresh request: %w", err)
+	}
+
+	req.Header.Set("Accept", "*/*")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send refresh request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("unexpected refresh status %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func extractCollectionName(result string) (string, error) {
+	var parsed []map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		return "", fmt.Errorf("failed to parse result: %w", err)
+	}
+
+	if len(parsed) == 0 {
+		return "", fmt.Errorf("empty result")
+	}
+
+	version, ok := parsed[0]["version"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("missing or invalid 'version' field")
+	}
+
+	name, ok := version["Name"].(string)
+	if !ok {
+		return "", fmt.Errorf("missing or invalid 'Name' field")
+	}
+
+	return name, nil
 }
 
 func InsertDataToDefra(ctx context.Context, data string) error {
@@ -286,8 +431,6 @@ func DeleteDefraDB(dir ...string) error {
 }
 
 func shutdownDefra() error {
-	fmt.Println("\n🛑 Caught interrupt. Stopping DefraDB...")
-
 	if defraCmd != nil && defraCmd.Process != nil {
 		if err := defraCmd.Process.Signal(syscall.SIGTERM); err != nil {
 			fmt.Println("⚠️ Could not send SIGTERM:", err)
