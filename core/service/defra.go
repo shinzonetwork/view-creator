@@ -56,14 +56,15 @@ func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, sch
 		return fmt.Errorf("failed to create temp rootdir: %w", err)
 	}
 
-	libPath := "/Users/daniel/go/pkg/mod/github.com/wasmerio/wasmer-go@v1.0.4/wasmer/packaged/lib/darwin-aarch64"
 	env := append(os.Environ(),
-		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", libPath),
+		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", os.Getenv("WASMER_LIB_PATH")),
 		"DEFRA_KEYRING_SECRET=1234",
 	)
 
 	defraCmd = exec.Command(bin, "start", "--rootdir", rootDir)
 	defraCmd.Env = env
+	// defraCmd.Stdout = os.Stdout
+	// defraCmd.Stderr = os.Stderr
 
 	if err := defraCmd.Start(); err != nil {
 		return fmt.Errorf("failed to start defradb: %w", err)
@@ -94,10 +95,21 @@ func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, sch
 
 	fmt.Println("✅ Applying View ...")
 
-	_, err = SendViewToDefra(ctx, "http://127.0.0.1:9181", viewJson)
+	result, err := SendViewToDefra(ctx, "http://127.0.0.1:9181", viewJson)
 	if err != nil {
 		return cleanupDefra("failed to send view", err)
 	}
+
+	collection, err := extractCollectionName(result)
+	if err != nil {
+		return cleanupDefra("failed to send view", err)
+	}
+
+	err = RefreshView(ctx, "http://127.0.0.1:9181", collection)
+	if err != nil {
+		return cleanupDefra("failed to send view", err)
+	}
+
 	fmt.Println("✅ View Successfully Applied")
 
 	fmt.Println("🧪 Visit the DefraDB GraphQL Playground at http://127.0.0.1:9181/")
@@ -158,6 +170,52 @@ func SendViewToDefra(ctx context.Context, defraURL string, jsonPayload string) (
 	}
 
 	return string(body), nil
+}
+
+func RefreshView(ctx context.Context, defraURL string, collection string) error {
+	url := fmt.Sprintf("%s/api/v0/view/refresh?name=%s", defraURL, collection)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create refresh request: %w", err)
+	}
+
+	req.Header.Set("Accept", "*/*")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send refresh request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("unexpected refresh status %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func extractCollectionName(result string) (string, error) {
+	var parsed []map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		return "", fmt.Errorf("failed to parse result: %w", err)
+	}
+
+	if len(parsed) == 0 {
+		return "", fmt.Errorf("empty result")
+	}
+
+	version, ok := parsed[0]["version"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("missing or invalid 'version' field")
+	}
+
+	name, ok := version["Name"].(string)
+	if !ok {
+		return "", fmt.Errorf("missing or invalid 'Name' field")
+	}
+
+	return name, nil
 }
 
 func InsertDataToDefra(ctx context.Context, data string) error {
