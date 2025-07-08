@@ -10,6 +10,9 @@ require (
 
 require (
 	github.com/agnivade/levenshtein v1.2.1 // indirect
+	github.com/cosmos/cosmos-sdk v0.47.3 // indirect
+	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
+	golang.org/x/crypto v0.7.0 // indirect
 )
