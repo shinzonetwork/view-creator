@@ -9,6 +9,9 @@ package store
 // - Default schema: typically maintained by the CLI and updated from a remote source
 // - Custom schema: user-defined types added and managed locally
 type SchemaStore interface {
+	// LoadD returns the full contents of the default schema and custom schema combined.
+	Load() (string, error)
+
 	// LoadDefault returns the full contents of the default schema.
 	// This is typically read-only and managed by the CLI.
 	LoadDefault() (string, error)
