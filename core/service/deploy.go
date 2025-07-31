@@ -29,10 +29,10 @@ type ViewLite struct {
 }
 
 func StartLocalNodeTestAndDeploy(name string, viewstore viewstore.ViewStore, schemastore schemastore.SchemaStore, wallet Wallet) error {
-	// err := StartLocalNodeAndTestView(name, viewstore, schemastore)
-	// if err != nil {
-	// 	return fmt.Errorf("view build and test failed locally")
-	// }
+	err := StartLocalNodeAndTestView(name, viewstore, schemastore)
+	if err != nil {
+		return fmt.Errorf("view build and test failed locally")
+	}
 
 	// get the view, and parse it to complete string blob
 	privateKey, err := DerivePrivateKey(wallet)
