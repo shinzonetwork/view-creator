@@ -26,3 +26,5 @@ curl -X POST http://localhost:8545 \
 
   view init testdeploy
   view init inspect
+
+  install_name_tool -add_rpath /Users/daniel/go/pkg/mod/github.com/wasmerio/wasmer-go@v1.0.4/wasmer/packaged/lib/darwin-aarch64 ~/.shinzo/defra/defradb
