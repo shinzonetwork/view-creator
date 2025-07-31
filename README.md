@@ -23,3 +23,6 @@ curl -X POST http://localhost:8545 \
     "params":["0x4bec7f625df55ba1e11e3715df8dd8ca72f2fd43e9f74cd8a3497c802ccb4537"],
     "id":1
   }'
+
+  view init testdeploy
+  view init inspect
