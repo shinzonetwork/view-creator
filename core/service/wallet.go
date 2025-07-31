@@ -1,6 +1,7 @@
 package service
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -43,12 +44,30 @@ func DeriveEvmAddress(mnemonic string) (string, error) {
 		return "", fmt.Errorf("failed to create master key: %w", err)
 	}
 
-	// Ethereum HD path: m/44'/60'/0'/0/0
-	purpose, _ := masterKey.NewChildKey(bip32.FirstHardenedChild + 44)
-	coinType, _ := purpose.NewChildKey(bip32.FirstHardenedChild + 60)
-	account, _ := coinType.NewChildKey(bip32.FirstHardenedChild + 0)
-	change, _ := account.NewChildKey(0)
-	addressIndexKey, _ := change.NewChildKey(0)
+	purpose, err := masterKey.NewChildKey(bip32.FirstHardenedChild + 44)
+	if err != nil {
+		return "", fmt.Errorf("failed to derive purpose key: %w", err)
+	}
+
+	coinType, err := purpose.NewChildKey(bip32.FirstHardenedChild + 60)
+	if err != nil {
+		return "", fmt.Errorf("failed to derive coin type key: %w", err)
+	}
+
+	account, err := coinType.NewChildKey(bip32.FirstHardenedChild + 0)
+	if err != nil {
+		return "", fmt.Errorf("failed to derive account key: %w", err)
+	}
+
+	change, err := account.NewChildKey(0)
+	if err != nil {
+		return "", fmt.Errorf("failed to derive change key: %w", err)
+	}
+
+	addressIndexKey, err := change.NewChildKey(0)
+	if err != nil {
+		return "", fmt.Errorf("failed to derive address index key: %w", err)
+	}
 
 	privateKey, err := crypto.ToECDSA(addressIndexKey.Key)
 	if err != nil {
@@ -57,6 +76,50 @@ func DeriveEvmAddress(mnemonic string) (string, error) {
 
 	address := crypto.PubkeyToAddress(privateKey.PublicKey)
 	return address.Hex(), nil
+}
+
+func DerivePrivateKey(wallet Wallet) (*ecdsa.PrivateKey, error) {
+	if !bip39.IsMnemonicValid(wallet.Mnemonic) {
+		return nil, fmt.Errorf("invalid mnemonic phrase")
+	}
+
+	seed := bip39.NewSeed(wallet.Mnemonic, "")
+	masterKey, err := bip32.NewMasterKey(seed)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create master key: %w", err)
+	}
+
+	purpose, err := masterKey.NewChildKey(bip32.FirstHardenedChild + 44)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive purpose key: %w", err)
+	}
+
+	coinType, err := purpose.NewChildKey(bip32.FirstHardenedChild + 60)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive coin type key: %w", err)
+	}
+
+	account, err := coinType.NewChildKey(bip32.FirstHardenedChild + 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive account key: %w", err)
+	}
+
+	change, err := account.NewChildKey(0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive change key: %w", err)
+	}
+
+	addressIndexKey, err := change.NewChildKey(0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive address index key: %w", err)
+	}
+
+	privateKey, err := crypto.ToECDSA(addressIndexKey.Key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert to ECDSA: %w", err)
+	}
+
+	return privateKey, nil
 }
 
 func DeriveShinzoAddress(mnemonic string) (string, error) {
@@ -111,27 +174,28 @@ func ImportMnemonic(mnemonic string) error {
 	return SaveWallet(mnemonic, address)
 }
 
-func LoadWallet() (*Wallet, error) {
-	dir, err := os.UserHomeDir()
+func LoadWallet() (Wallet, error) {
+	home, err := os.UserHomeDir()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user home directory: %w", err)
+		return Wallet{}, fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	path := filepath.Join(dir, "shinzo", "wallet", "wallet.json")
+	dir := filepath.Join(home, ".shinzo", "wallet")
+	path := filepath.Join(dir, "wallet.json")
 
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("wallet not found. Please generate one using `viewkit wallet generate`")
+			return Wallet{}, fmt.Errorf("wallet not found. Please generate one using `viewkit wallet generate`")
 		}
-		return nil, fmt.Errorf("failed to read wallet file: %w", err)
+		return Wallet{}, fmt.Errorf("failed to read wallet file: %w", err)
 	}
 
 	var wallet Wallet
 	if err := json.Unmarshal(data, &wallet); err != nil {
-		return nil, err
+		return Wallet{}, err
 	}
-	return &wallet, nil
+	return wallet, nil
 }
 
 func GenerateWallet() (string, string, error) {

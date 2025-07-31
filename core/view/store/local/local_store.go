@@ -1,6 +1,7 @@
 package local
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -287,6 +288,43 @@ func (s *LocalStore) Rollback(viewName string, targetVersion int) (models.View, 
 	rolledBackView.Metadata = meta
 
 	return s.Save(viewName, rolledBackView)
+}
+
+// GetAssetBlob finds the lens with the given label and returns its wasm blob as a base64 string.
+func (s *LocalStore) GetAssetBlob(viewName string, lensLabel string) (string, error) {
+	// Load the view
+	view, err := s.Load(viewName)
+	if err != nil {
+		return "", fmt.Errorf("failed to load view: %w", err)
+	}
+
+	// Find the lens by label
+	var lens *models.Lens
+	for i := range view.Transform.Lenses {
+		if view.Transform.Lenses[i].Label == lensLabel {
+			lens = &view.Transform.Lenses[i]
+			break
+		}
+	}
+	if lens == nil {
+		return "", fmt.Errorf("lens with label %q not found", lensLabel)
+	}
+
+	// Resolve path to wasm file
+	assetPath := lens.Path
+	if !filepath.IsAbs(assetPath) {
+		assetPath = filepath.Join(s.BasePath, viewName, "assets", fmt.Sprintf("%s.wasm", lensLabel))
+	}
+
+	// Read the file
+	data, err := os.ReadFile(assetPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read asset file %q: %w", assetPath, err)
+	}
+
+	// Encode to base64 and return
+	encoded := base64.StdEncoding.EncodeToString(data)
+	return encoded, nil
 }
 
 func MakeRevisionSnapshot(meta models.Metadata, oldView any, newView any) (models.Metadata, error) {
