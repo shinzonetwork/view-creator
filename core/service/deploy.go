@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/shinzonetwork/view-creator/core/models"
@@ -161,8 +160,6 @@ func sendRegisterTx(
 	if err := client.SendTransaction(context.Background(), signedTx); err != nil {
 		return "", fmt.Errorf("failed to send tx: %w", err)
 	}
-
-	log.Printf("✅ View deployed! Tx hash: %s", signedTx.Hash().Hex())
 
 	return signedTx.Hash().Hex(), nil
 }
