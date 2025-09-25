@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"regexp"
 
 	"github.com/shinzonetwork/view-creator/core/models"
 	schemastore "github.com/shinzonetwork/view-creator/core/schema/store"
@@ -76,7 +77,11 @@ func StartLocalNodeTestAndDeploy(name string, viewstore viewstore.ViewStore, sch
 		return fmt.Errorf("failed to marshal view: %w", err)
 	}
 
-	viewid := ComputeViewID(privateKey, data)
+	viewHash, viewid, err := ComputeViewID(privateKey, data)
+	if err != nil {
+		return err
+	}
+
 	hash, err := sendRegisterTx(DEFAULT_EVM_RPC, SHINZO_HUB_PRECOMPILED_VIEW_REGISTRY_ADDRESS, privateKey, data)
 	if err != nil {
 		return err
@@ -84,7 +89,8 @@ func StartLocalNodeTestAndDeploy(name string, viewstore viewstore.ViewStore, sch
 
 	fmt.Println("✅ View deployment successful!")
 	fmt.Println("----------------------------------------")
-	fmt.Printf("🔑 View ID:           %s\n", viewid.Hex())
+	fmt.Printf("🔑 View ID:           %s\n", viewid)
+	fmt.Printf("🔑 View Key:          %s\n", viewHash)
 	fmt.Printf("📦 Transaction Hash:  %s\n", hash)
 	fmt.Println("Blob size (bytes):", len(data))
 	fmt.Println("----------------------------------------")
@@ -93,16 +99,24 @@ func StartLocalNodeTestAndDeploy(name string, viewstore viewstore.ViewStore, sch
 	return nil
 }
 
-func ComputeViewID(privateKey *ecdsa.PrivateKey, blob []byte) common.Hash {
+func ComputeViewID(privateKey *ecdsa.PrivateKey, blob []byte) (common.Hash, string, error) {
 	sender := crypto.PubkeyToAddress(privateKey.PublicKey)
+
+	re := regexp.MustCompile(`type\s+([A-Za-z0-9_]+)`) // TODO: more robost regex to get sdl type
+	matches := re.FindStringSubmatch(string(blob))
+	if len(matches) < 2 {
+		return common.Hash{}, "", fmt.Errorf("invalid SDL, could not get resource name")
+	}
+
+	ResourceName := matches[1]
 
 	// Concatenate sender address and blob (same as abi.encodePacked)
 	combined := append(sender.Bytes(), blob...)
 
 	// keccak256 hash
-	viewID := crypto.Keccak256Hash(combined)
+	viewHash := crypto.Keccak256Hash(combined)
 
-	return viewID
+	return viewHash, fmt.Sprintf("%s_%s", ResourceName, viewHash.Hex()), nil
 }
 
 func sendRegisterTx(
