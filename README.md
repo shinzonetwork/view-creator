@@ -1,30 +1,15 @@
 # view-creator
 
-go run ./cmd/viewkit/ view deploy testdeploy --target local 
+./viewkit view init testdeploy
 
+./viewkit view inspect testdeploy
 
-go build -o viewkit ./cmd/viewkit
+./viewkit view add query "Log {address topics data transactionHash blockNumber}" --name testdeploy            
 
+./viewkit view add sdl "type FilteredAndDecodedLogs @materialized(if: false) {transactionHash: String}" --name testdeploy
 
-curl -X POST http://localhost:8545 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "eth_getTransactionByHash",
-    "params": ["0x4bec7f625df55ba1e11e3715df8dd8ca72f2fd43e9f74cd8a3497c802ccb4537"],
-    "id": 1
-  }'
+./viewkit view add lens --args '{"src":"address", "value":"0x1e3aA9fE4Ef01D3cB3189c129a49E3C03126C636"}' --label "filter" --url "https://raw.githubusercontent.com/shinzonetwork/wasm-bucket/main/bucket/filter_transaction/filter_transaction.wasm" --name testdeploy
 
-curl -X POST http://localhost:8545 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc":"2.0",
-    "method":"eth_getTransactionReceipt",
-    "params":["0x4bec7f625df55ba1e11e3715df8dd8ca72f2fd43e9f74cd8a3497c802ccb4537"],
-    "id":1
-  }'
+./viewkit wallet generate  
 
-  view init testdeploy
-  view init inspect
-
-  install_name_tool -add_rpath /Users/daniel/go/pkg/mod/github.com/wasmerio/wasmer-go@v1.0.4/wasmer/packaged/lib/darwin-aarch64 ~/.shinzo/defra/defradb
+./viewkit view deploy testdeploy --target devnet 

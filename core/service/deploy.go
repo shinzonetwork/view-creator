@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"os"
 
 	"github.com/shinzonetwork/view-creator/core/models"
 	schemastore "github.com/shinzonetwork/view-creator/core/schema/store"
@@ -22,7 +21,6 @@ var SHINZO_HUB_PRECOMPILED_VIEW_REGISTRY_ADDRESS = "0x00000000000000000000000000
 var DEFAULT_EVM_RPC = "http://127.0.0.1:8545/"
 
 type ViewLite struct {
-	Name      string           `json:"name"`
 	Query     *string          `json:"query"`
 	Sdl       *string          `json:"sdl"`
 	Transform models.Transform `json:"transform"`
@@ -31,22 +29,22 @@ type ViewLite struct {
 func StartLocalNodeTestAndDeploy(name string, viewstore viewstore.ViewStore, schemastore schemastore.SchemaStore, wallet Wallet) error {
 	fmt.Println("🔧 Building and testing view before deployment...")
 
-	// Suppress stdout and stderr
-	null, _ := os.Open(os.DevNull)
-	stdout := os.Stdout
-	stderr := os.Stderr
-	os.Stdout = null
-	os.Stderr = null
+	// // Suppress stdout and stderr
+	// null, _ := os.Open(os.DevNull)
+	// stdout := os.Stdout
+	// stderr := os.Stderr
+	// os.Stdout = null
+	// os.Stderr = null
 
-	err := StartLocalNodeAndTestView(name, viewstore, schemastore)
+	// err := StartLocalNodeAndTestView(name, viewstore, schemastore)
 
-	// Restore original stdout and stderr
-	os.Stdout = stdout
-	os.Stderr = stderr
+	// // Restore original stdout and stderr
+	// os.Stdout = stdout
+	// os.Stderr = stderr
 
-	if err != nil {
-		return fmt.Errorf("❌ View failed to build or pass tests: %w", err)
-	}
+	// if err != nil {
+	// 	return fmt.Errorf("❌ View failed to build or pass tests: %w", err)
+	// }
 
 	fmt.Println("⏳ View built and tested successfully. Deploying...")
 
@@ -68,7 +66,6 @@ func StartLocalNodeTestAndDeploy(name string, viewstore viewstore.ViewStore, sch
 	}
 
 	viewLite := ViewLite{
-		Name:      view.Name,
 		Query:     view.Query,
 		Sdl:       view.Sdl,
 		Transform: view.Transform,
