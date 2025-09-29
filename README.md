@@ -23,6 +23,45 @@ You can then run `viewkit` via `./build/viewkit` or simply `viewkit` if you expo
 
 ---
 
+## Wasmer runtime (macOS, Apple Silicon)
+
+### Why
+Viewkit can execute WebAssembly **lenses** locally for validation and preview. The Go package `wasmer-go` uses a native dynamic library (`libwasmer.dylib`) at runtime. If the loader cannot find it, commands that touch lenses will fail with an error like “image not found.”
+
+### What the env vars do
+- `WASMER_LIB_PATH` tells `wasmer-go` where the Wasmer dynamic library lives.
+- `DYLD_LIBRARY_PATH` tells the macOS dynamic loader where to search for `.dylib` files when a process starts. We prepend the Wasmer directory so the loader can find `libwasmer.dylib`.
+
+### Install the module
+You already have the module via `go get`, but here’s the explicit call if needed:
+```bash
+go get github.com/wasmerio/wasmer-go@v1.0.4
+```
+
+### Add the env vars to your shell
+
+```bash
+# Wasmer Go native libs (Apple Silicon)
+export WASMER_ROOT="$(go env GOPATH)/pkg/mod/github.com/wasmerio/wasmer-go@v1.0.4/wasmer/packaged/lib/darwin-aarch64"
+export WASMER_LIB_PATH="$WASMER_ROOT"
+export DYLD_LIBRARY_PATH="$WASMER_ROOT:$DYLD_LIBRARY_PATH"
+```
+
+Apply it now:
+```bash
+source ~/.zshrc
+```
+
+One-liners to append automatically:
+```bash
+echo 'export WASMER_ROOT="$(go env GOPATH)/pkg/mod/github.com/wasmerio/wasmer-go@v1.0.4/wasmer/packaged/lib/darwin-aarch64"' >> ~/.zshrc
+echo 'export WASMER_LIB_PATH="$WASMER_ROOT"' >> ~/.zshrc
+echo 'export DYLD_LIBRARY_PATH="$WASMER_ROOT:$DYLD_LIBRARY_PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+---
+
 ## Quick start
 
 Create, inspect, enrich, and deploy a view named **testdeploy**:
