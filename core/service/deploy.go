@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"os"
 	"regexp"
 
 	"github.com/shinzonetwork/view-creator/core/models"
@@ -30,22 +31,22 @@ type ViewLite struct {
 func StartLocalNodeTestAndDeploy(name string, viewstore viewstore.ViewStore, schemastore schemastore.SchemaStore, wallet Wallet) error {
 	fmt.Println("🔧 Building and testing view before deployment...")
 
-	// // Suppress stdout and stderr
-	// null, _ := os.Open(os.DevNull)
-	// stdout := os.Stdout
-	// stderr := os.Stderr
-	// os.Stdout = null
-	// os.Stderr = null
+	// Suppress stdout and stderr
+	null, _ := os.Open(os.DevNull)
+	stdout := os.Stdout
+	stderr := os.Stderr
+	os.Stdout = null
+	os.Stderr = null
 
-	// err := StartLocalNodeAndTestView(name, viewstore, schemastore)
+	err := StartLocalNodeAndTestView(name, viewstore, schemastore)
 
-	// // Restore original stdout and stderr
-	// os.Stdout = stdout
-	// os.Stderr = stderr
+	// Restore original stdout and stderr
+	os.Stdout = stdout
+	os.Stderr = stderr
 
-	// if err != nil {
-	// 	return fmt.Errorf("❌ View failed to build or pass tests: %w", err)
-	// }
+	if err != nil {
+		return fmt.Errorf("❌ View failed to build or pass tests: %w", err)
+	}
 
 	fmt.Println("⏳ View built and tested successfully. Deploying...")
 
@@ -104,7 +105,7 @@ func ComputeViewID(privateKey *ecdsa.PrivateKey, blob []byte) (common.Hash, stri
 
 	re := regexp.MustCompile(`type\s+([A-Za-z0-9_]+)`) // TODO: more robost regex to get sdl type
 	matches := re.FindStringSubmatch(string(blob))
-	if len(matches) < 2 {
+	if len(matches) < 1 {
 		return common.Hash{}, "", fmt.Errorf("invalid SDL, could not get resource name")
 	}
 

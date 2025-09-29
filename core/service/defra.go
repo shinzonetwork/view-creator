@@ -57,7 +57,6 @@ func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, sch
 	}
 
 	env := append(os.Environ(),
-		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", os.Getenv("WASMER_LIB_PATH")),
 		"DEFRA_KEYRING_SECRET=1234",
 	)
 
@@ -146,12 +145,16 @@ func StartLocalNodeAndTestView(name string, viewstore viewstore.ViewStore, schem
 	}
 
 	env := append(os.Environ(),
-		fmt.Sprintf("DYLD_LIBRARY_PATH=%s", os.Getenv("WASMER_LIB_PATH")),
 		"DEFRA_KEYRING_SECRET=1234",
 	)
 
 	fmt.Println("🚀 Starting DefraDB...")
 	defraCmd = exec.Command(bin, "start", "--rootdir", rootDir)
+
+	// This is here for debug purposes; Show command output as it happens
+	// defraCmd.Stdout = os.Stdout
+	// defraCmd.Stderr = os.Stderr
+
 	defraCmd.Env = env
 
 	if err := defraCmd.Start(); err != nil {
@@ -170,6 +173,10 @@ func StartLocalNodeAndTestView(name string, viewstore viewstore.ViewStore, schem
 
 	schemaCmd := exec.Command(bin, "client", "schema", "add", schemaContent, "--rootdir", rootDir)
 	schemaCmd.Env = env
+
+	// This is here for debug purposes; Show command output as it happens
+	// schemaCmd.Stdout = os.Stdout
+	// schemaCmd.Stderr = os.Stderr
 
 	if err := schemaCmd.Run(); err != nil {
 		return cleanupDefra("❌ Failed to apply schema", err)
