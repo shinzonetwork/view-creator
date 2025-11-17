@@ -1,7 +1,44 @@
+# Binaries and build outputs
+/build/
+/dist/
+/bin/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+
+# Go artifacts
+*.out
+coverage.*
+*.coverprofile
+*.prof
+*.pprof
+
+# Dependencies (if vendored)
+/vendor/
+
+# IDE/editor
+.vscode/
+.idea/
+*.code-workspace
+
+# OS files
 .DS_Store
+Thumbs.db
 
+# Environment/secrets
 .env
+.env.*
+*.local
 
-viewkit
+# Logs & temp
+*.log
+*.tmp
+*.swp
 
-*.txt
+# Node (if you have frontend/tools)
+node_modules/
+
+# Misc
+.git-credentials

@@ -27,7 +27,13 @@ func MakeViewDeployCommand() *cobra.Command {
 			switch target {
 			case "local":
 				return service.StartLocalNodeAndDeployView(viewName, viewstore, schemastore)
-			case "devnet", "mainnet":
+			case "devnet":
+				wallet, err := service.LoadWallet()
+				if err != nil {
+					return err
+				}
+				return service.StartLocalNodeTestAndDeploy(viewName, viewstore, schemastore, wallet)
+			case "mainnet":
 				return fmt.Errorf("target '%s' not yet supported", target)
 			default:
 				return fmt.Errorf("invalid target '%s'. Must be one of: local, devnet, mainnet", target)
