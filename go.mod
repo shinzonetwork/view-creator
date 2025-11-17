@@ -1,6 +1,6 @@
 module github.com/shinzonetwork/view-creator
 
-go 1.24.2
+go 1.25
 
 require (
 	github.com/cosmos/cosmos-sdk v0.47.7
