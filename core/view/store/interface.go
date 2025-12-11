@@ -38,6 +38,8 @@ type ViewStore interface {
 	// Deletes an asset by view name and label.
 	DeleteAsset(viewName string, label string) error
 
+	GetAssetBlob(viewName string, label string) (string, error)
+
 	// Revert the view back to a previous version
 	Rollback(viewName string, version int) (models.View, error)
 }
