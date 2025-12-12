@@ -20,7 +20,7 @@ import (
 )
 
 var SHINZO_HUB_PRECOMPILED_VIEW_REGISTRY_ADDRESS = "0x0000000000000000000000000000000000000210"
-var DEFAULT_EVM_RPC = "http://127.0.0.1:8545/"
+var DEFAULT_EVM_RPC = "http://34.29.171.79:8545/"
 
 type ViewLite struct {
 	Query     *string          `json:"query"`
@@ -179,7 +179,7 @@ func sendRegisterTx(
 
 	// Build and sign transaction
 	to := common.HexToAddress(contractAddr)
-	tx := types.NewTransaction(nonce, to, big.NewInt(0), 5000000000, gasPrice, input)
+	tx := types.NewTransaction(nonce, to, big.NewInt(0), 99000000, gasPrice, input)
 
 	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
 	if err != nil {
