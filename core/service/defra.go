@@ -429,6 +429,12 @@ func DownloadDefraDB(version string, dir ...string) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+	    body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
+	    return fmt.Errorf("failed to download defradb (%s): status %d: %s", url, resp.StatusCode, string(body))
+	}
+
+
 	binary := filepath.Join(base, "defradb")
 	out, err := os.Create(binary)
 	if err != nil {
@@ -490,13 +496,20 @@ func cleanupDefra(reason string, err error) error {
 }
 
 func defraDownloadURL(version string) string {
-	osName := runtime.GOOS
-	arch := runtime.GOARCH
-	return fmt.Sprintf(
-		"https://github.com/sourcenetwork/defradb/releases/download/v%s/defradb_%s_%s_%s",
-		version, version, osName, arch,
-	)
+    osName := runtime.GOOS
+    arch := runtime.GOARCH
+
+    // DefraDB v0.18.0 release assets use x86_64 (not amd64) for Linux/Windows filenames.
+    if arch == "amd64" {
+        arch = "x86_64"
+    }
+
+    return fmt.Sprintf(
+        "https://github.com/sourcenetwork/defradb/releases/download/v%s/defradb_%s_%s_%s",
+        version, version, osName, arch,
+    )
 }
+
 
 func getPathInViewAssets(viewName, relativePath string) string {
 	home, err := os.UserHomeDir()
