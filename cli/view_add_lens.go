@@ -32,7 +32,7 @@ func MakeAddLensCommand(viewName *string) *cobra.Command {
 				return fmt.Errorf("--label is required")
 			}
 
-			var argsMap map[string]any
+			var argsMap map[string]string
 			if argsJson != "" {
 				if err := json.Unmarshal([]byte(argsJson), &argsMap); err != nil {
 					return fmt.Errorf("invalid --args JSON: %w", err)

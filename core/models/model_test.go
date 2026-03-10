@@ -15,7 +15,7 @@ func TestViewJSONMarshaling(t *testing.T) {
 	lensA := models.Lens{
 		Label: "filter_usdt",
 		Path:  "assets/lens_filter_usdt.wasm",
-		Arguments: map[string]any{
+		Arguments: map[string]string{
 			"src":   "address",
 			"value": "0xdac17f958d2ee523a2206206994597c13d831ec7",
 		},
@@ -24,7 +24,7 @@ func TestViewJSONMarshaling(t *testing.T) {
 	lensB := models.Lens{
 		Label: "decode_inputs",
 		Path:  "assets/lens_decode_inputs.wasm",
-		Arguments: map[string]any{
+		Arguments: map[string]string{
 			"abi": `{"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}]}`,
 		},
 	}
