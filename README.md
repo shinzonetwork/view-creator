@@ -86,7 +86,7 @@ Create, inspect, enrich, and deploy a view named **testdeploy**:
 ./viewkit wallet generate
 
 # 7) deploy to devnet
-./viewkit view deploy testdeploy --target devnet
+./viewkit view deploy testdeploy --target devnet --rpc http://34.29.171.79:8545/
 ```
 
 **What each step does**

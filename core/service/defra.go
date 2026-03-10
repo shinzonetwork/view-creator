@@ -15,9 +15,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/shinzonetwork/view-creator/core/models"
-	schemastore "github.com/shinzonetwork/view-creator/core/schema/store"
-	viewstore "github.com/shinzonetwork/view-creator/core/view/store"
+	"github.com/shinzonetwork/shinzo-view-creator/core/models"
+	schemastore "github.com/shinzonetwork/shinzo-view-creator/core/schema/store"
+	viewstore "github.com/shinzonetwork/shinzo-view-creator/core/view/store"
 )
 
 var defraCmd *exec.Cmd
@@ -28,7 +28,7 @@ type DefraViewPayload struct {
 	Transform map[string]any `json:"Transform"`
 }
 
-func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, schemastore schemastore.SchemaStore) error {
+func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, schemastore schemastore.SchemaStore, debug bool) error {
 	ctx := context.Background()
 
 	view, err := viewstore.Load(name)
@@ -62,8 +62,11 @@ func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, sch
 
 	defraCmd = exec.Command(bin, "start", "--rootdir", rootDir)
 	defraCmd.Env = env
-	// defraCmd.Stdout = os.Stdout
-	// defraCmd.Stderr = os.Stderr
+
+	if debug {
+		defraCmd.Stdout = os.Stdout
+		defraCmd.Stderr = os.Stderr
+	}
 
 	if err := defraCmd.Start(); err != nil {
 		return fmt.Errorf("failed to start defradb: %w", err)
@@ -118,7 +121,7 @@ func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, sch
 	return shutdownDefra()
 }
 
-func StartLocalNodeAndTestView(name string, viewstore viewstore.ViewStore, schemastore schemastore.SchemaStore) error {
+func StartLocalNodeAndTestView(name string, viewstore viewstore.ViewStore, schemastore schemastore.SchemaStore, debug bool) error {
 	ctx := context.Background()
 
 	fmt.Println("🔍 Loading view...")
@@ -152,8 +155,10 @@ func StartLocalNodeAndTestView(name string, viewstore viewstore.ViewStore, schem
 	defraCmd = exec.Command(bin, "start", "--rootdir", rootDir)
 
 	// This is here for debug purposes; Show command output as it happens
-	// defraCmd.Stdout = os.Stdout
-	// defraCmd.Stderr = os.Stderr
+	if debug {
+		defraCmd.Stdout = os.Stdout
+		defraCmd.Stderr = os.Stderr
+	}
 
 	defraCmd.Env = env
 
@@ -289,27 +294,55 @@ func RefreshView(ctx context.Context, defraURL string, collection string) error 
 	return nil
 }
 
+// func extractCollectionName(result string) (string, error) {
+// 	var parsed []map[string]interface{}
+// 	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+// 		return "", fmt.Errorf("failed to parse result: %w", err)
+// 	}
+
+// 	if len(parsed) == 0 {
+// 		return "", fmt.Errorf("empty result")
+// 	}
+
+// 	version, ok := parsed[0]["version"].(map[string]interface{})
+// 	if !ok {
+// 		return "", fmt.Errorf("missing or invalid 'version' field")
+// 	}
+
+// 	name, ok := version["Name"].(string)
+// 	if !ok {
+// 		return "", fmt.Errorf("missing or invalid 'Name' field")
+// 	}
+
+// 	return name, nil
+// }
+
 func extractCollectionName(result string) (string, error) {
-	var parsed []map[string]interface{}
+	var parsed []map[string]any
 	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
 		return "", fmt.Errorf("failed to parse result: %w", err)
 	}
-
 	if len(parsed) == 0 {
 		return "", fmt.Errorf("empty result")
 	}
 
-	version, ok := parsed[0]["version"].(map[string]interface{})
-	if !ok {
-		return "", fmt.Errorf("missing or invalid 'version' field")
+	// Format A: { "version": { "Name": ... }, "schema": ... }
+	if vRaw, ok := parsed[0]["version"]; ok && vRaw != nil {
+		if v, ok := vRaw.(map[string]any); ok {
+			if name, ok := v["Name"].(string); ok && name != "" {
+				return name, nil
+			}
+			return "", fmt.Errorf("missing or invalid 'version.Name' field")
+		}
+		return "", fmt.Errorf("invalid 'version' type")
 	}
 
-	name, ok := version["Name"].(string)
-	if !ok {
-		return "", fmt.Errorf("missing or invalid 'Name' field")
+	// Format B: { "Name": "...", "VersionID": "...", ... }
+	if name, ok := parsed[0]["Name"].(string); ok && name != "" {
+		return name, nil
 	}
 
-	return name, nil
+	return "", fmt.Errorf("missing 'Name' in both formats")
 }
 
 func InsertDataToDefra(ctx context.Context, data string) error {

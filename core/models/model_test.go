@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/shinzonetwork/view-creator/core/models"
+	"github.com/shinzonetwork/shinzo-view-creator/core/models"
 )
 
 func TestViewJSONMarshaling(t *testing.T) {

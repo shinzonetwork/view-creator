@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shinzonetwork/view-creator/cli"
-	"github.com/shinzonetwork/view-creator/core/service"
-	"github.com/shinzonetwork/view-creator/core/view/store/local"
+	"github.com/shinzonetwork/shinzo-view-creator/cli"
+	"github.com/shinzonetwork/shinzo-view-creator/core/service"
+	"github.com/shinzonetwork/shinzo-view-creator/core/view/store/local"
 	"github.com/spf13/cobra"
 )
 

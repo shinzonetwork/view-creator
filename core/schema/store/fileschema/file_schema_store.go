@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/shinzonetwork/view-creator/tools"
+	"github.com/shinzonetwork/shinzo-view-creator/tools"
 )
 
 type FileSchemaStore struct {

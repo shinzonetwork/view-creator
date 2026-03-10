@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shinzonetwork/view-creator/core/models"
-	"github.com/shinzonetwork/view-creator/core/schema"
-	schemastore "github.com/shinzonetwork/view-creator/core/schema/store"
-	"github.com/shinzonetwork/view-creator/core/util"
-	viewstore "github.com/shinzonetwork/view-creator/core/view/store"
+	"github.com/shinzonetwork/shinzo-view-creator/core/models"
+	"github.com/shinzonetwork/shinzo-view-creator/core/schema"
+	schemastore "github.com/shinzonetwork/shinzo-view-creator/core/schema/store"
+	"github.com/shinzonetwork/shinzo-view-creator/core/util"
+	viewstore "github.com/shinzonetwork/shinzo-view-creator/core/view/store"
 )
 
 func InitView(name string, s viewstore.ViewStore) (models.View, error) {

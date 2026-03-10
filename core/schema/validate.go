@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/shinzonetwork/view-creator/core/schema/store"
+	"github.com/shinzonetwork/shinzo-view-creator/core/schema/store"
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/parser"

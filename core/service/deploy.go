@@ -9,9 +9,9 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/shinzonetwork/view-creator/core/models"
-	schemastore "github.com/shinzonetwork/view-creator/core/schema/store"
-	viewstore "github.com/shinzonetwork/view-creator/core/view/store"
+	"github.com/shinzonetwork/shinzo-view-creator/core/models"
+	schemastore "github.com/shinzonetwork/shinzo-view-creator/core/schema/store"
+	viewstore "github.com/shinzonetwork/shinzo-view-creator/core/view/store"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -20,7 +20,6 @@ import (
 )
 
 var SHINZO_HUB_PRECOMPILED_VIEW_REGISTRY_ADDRESS = "0x0000000000000000000000000000000000000210"
-var DEFAULT_EVM_RPC = "http://34.29.171.79:8545/"
 
 type ViewLite struct {
 	Query     *string          `json:"query"`
@@ -28,21 +27,27 @@ type ViewLite struct {
 	Transform models.Transform `json:"transform"`
 }
 
-func StartLocalNodeTestAndDeploy(name string, viewstore viewstore.ViewStore, schemastore schemastore.SchemaStore, wallet Wallet) error {
+func StartLocalNodeTestAndDeploy(name string, viewstore viewstore.ViewStore, schemastore schemastore.SchemaStore, wallet Wallet, rpc string, debug bool) error {
 	fmt.Println("🔧 Building and testing view before deployment...")
 
-	// Suppress stdout and stderr
-	null, _ := os.Open(os.DevNull)
-	stdout := os.Stdout
-	stderr := os.Stderr
-	os.Stdout = null
-	os.Stderr = null
+	var stdout, stderr *os.File
+	var null *os.File
 
-	err := StartLocalNodeAndTestView(name, viewstore, schemastore)
+	if !debug {
+		null, _ = os.Open(os.DevNull)
+		stdout = os.Stdout
+		stderr = os.Stderr
+		os.Stdout = null
+		os.Stderr = null
+	}
 
-	// Restore original stdout and stderr
-	os.Stdout = stdout
-	os.Stderr = stderr
+	err := StartLocalNodeAndTestView(name, viewstore, schemastore, debug)
+
+	if !debug {
+		os.Stdout = stdout
+		os.Stderr = stderr
+		_ = null.Close()
+	}
 
 	if err != nil {
 		return fmt.Errorf("❌ View failed to build or pass tests: %w", err)
@@ -83,7 +88,7 @@ func StartLocalNodeTestAndDeploy(name string, viewstore viewstore.ViewStore, sch
 		return err
 	}
 
-	hash, err := sendRegisterTx(DEFAULT_EVM_RPC, SHINZO_HUB_PRECOMPILED_VIEW_REGISTRY_ADDRESS, privateKey, data)
+	hash, err := sendRegisterTx(rpc, SHINZO_HUB_PRECOMPILED_VIEW_REGISTRY_ADDRESS, privateKey, data)
 	if err != nil {
 		return err
 	}

@@ -11,8 +11,8 @@ import (
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/shinzonetwork/view-creator/core/models"
-	"github.com/shinzonetwork/view-creator/core/view/store"
+	"github.com/shinzonetwork/shinzo-view-creator/core/models"
+	"github.com/shinzonetwork/shinzo-view-creator/core/view/store"
 )
 
 type LocalStore struct {

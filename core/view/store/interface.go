@@ -3,7 +3,7 @@ package store
 import (
 	"io"
 
-	"github.com/shinzonetwork/view-creator/core/models"
+	"github.com/shinzonetwork/shinzo-view-creator/core/models"
 )
 
 // ViewStore defines a contract for persisting and retrieving views across various storage.

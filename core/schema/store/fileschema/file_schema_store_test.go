@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shinzonetwork/view-creator/core/schema/store/fileschema"
+	"github.com/shinzonetwork/shinzo-view-creator/core/schema/store/fileschema"
 )
 
 func TestFileSchemaStore_Lifecycle(t *testing.T) {

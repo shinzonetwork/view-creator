@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/shinzonetwork/view-creator/cli"
+	"github.com/shinzonetwork/shinzo-view-creator/cli"
 )
 
 func main() {

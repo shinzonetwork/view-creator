@@ -6,7 +6,6 @@ require (
 	github.com/cosmos/cosmos-sdk v0.47.7
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/evanphx/json-patch/v5 v5.9.11
-	github.com/shinzonetwork/view-creator v0.0.0-20251212162028-8f5d6bb53094
 	github.com/spf13/cobra v1.9.1
 	github.com/vektah/gqlparser/v2 v2.5.30
 )

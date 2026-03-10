@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shinzonetwork/view-creator/cli"
-	"github.com/shinzonetwork/view-creator/core/schema/store/fileschema"
+	"github.com/shinzonetwork/shinzo-view-creator/cli"
+	"github.com/shinzonetwork/shinzo-view-creator/core/schema/store/fileschema"
 )
 
 func TestMakeSchemaListCommand(t *testing.T) {

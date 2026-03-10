@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/shinzonetwork/view-creator/core/service"
+	"github.com/shinzonetwork/shinzo-view-creator/core/service"
 	"github.com/spf13/cobra"
 )
 

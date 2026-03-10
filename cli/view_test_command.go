@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/shinzonetwork/view-creator/core/schema/store/fileschema"
-	"github.com/shinzonetwork/view-creator/core/service"
+	"github.com/shinzonetwork/shinzo-view-creator/core/schema/store/fileschema"
+	"github.com/shinzonetwork/shinzo-view-creator/core/service"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +20,7 @@ func MakeViewTestCommand() *cobra.Command {
 
 			viewName := args[0]
 
-			return service.StartLocalNodeAndTestView(viewName, viewstore, schemastore)
+			return service.StartLocalNodeAndTestView(viewName, viewstore, schemastore, false)
 		},
 	}
 

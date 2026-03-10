@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shinzonetwork/view-creator/core/schema/store/fileschema"
-	"github.com/shinzonetwork/view-creator/core/service"
+	"github.com/shinzonetwork/shinzo-view-creator/core/schema/store/fileschema"
+	"github.com/shinzonetwork/shinzo-view-creator/core/service"
 )
 
 func TestSchemaService_AddGetListRemoveReset(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/shinzonetwork/view-creator/core/schema/store"
-	"github.com/shinzonetwork/view-creator/core/util"
+	"github.com/shinzonetwork/shinzo-view-creator/core/schema/store"
+	"github.com/shinzonetwork/shinzo-view-creator/core/util"
 )
 
 func AddCustomSchema(schemaStore store.SchemaStore, newSchema string) error {
