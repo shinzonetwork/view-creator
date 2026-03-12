@@ -102,6 +102,12 @@ func StartLocalNodeTestAndDeploy(
 			return fmt.Errorf("lens[%d] missing Path (expected base64 wasm)", i)
 		}
 
+		// Read the wasm file and base64-encode it for the bundler
+		wasmBase64, err := viewstore.GetAssetBlob(name, l.Label)
+		if err != nil {
+			return fmt.Errorf("lens[%d] failed to load wasm blob: %w", i, err)
+		}
+
 		// If it's a map/struct, marshal to JSON string.
 		args := ""
 		switch v := any(l.Arguments).(type) {
@@ -116,7 +122,7 @@ func StartLocalNodeTestAndDeploy(
 		}
 
 		vb.Transform.Lenses = append(vb.Transform.Lenses, viewbundle.Lens{
-			Path:      l.Path,
+			Path:      wasmBase64,
 			Arguments: args,
 		})
 	}
@@ -233,7 +239,7 @@ func sendRegisterTx(
 	}
 
 	// Encode register(bytes) calldata
-	input := encodeRegisterBytesCalldata(payload)
+	input := EncodeRegisterBytesCalldata(payload)
 
 	to := common.HexToAddress(contractAddr)
 
@@ -266,7 +272,7 @@ func sendRegisterTx(
 	return signedTx.Hash().Hex(), nil
 }
 
-func encodeRegisterBytesCalldata(payload []byte) []byte {
+func EncodeRegisterBytesCalldata(payload []byte) []byte {
 	// methodID = keccak256("register(bytes)")[:4]
 	methodID := crypto.Keccak256([]byte("register(bytes)"))[:4]
 

@@ -1,14 +1,16 @@
 directive @index(unique: Boolean) on FIELD_DEFINITION | OBJECT
 directive @relation(name: String) on FIELD_DEFINITION
 
-type Block {
+type Ethereum__Mainnet__Block {
     hash: String @index(unique: true)
     number: Int @index
     timestamp: String
     parentHash: String
     difficulty: String
+    totalDifficulty: String
     gasUsed: String
     gasLimit: String
+    baseFeePerGas: String
     nonce: String
     miner: String
     size: String
@@ -16,56 +18,97 @@ type Block {
     sha3Uncles: String
     transactionsRoot: String
     receiptsRoot: String
+    logsBloom: String
     extraData: String
+    mixHash: String
+    uncles: [String]
     # Relationships
-    transactions: [Transaction] @relation(name: "block_transactions")
+    transactions: [Ethereum__Mainnet__Transaction] @relation(name: "block_transactions")
 }
 
-type Transaction {
-    hash: String @index(unique: true)
-    blockHash: String @index
+# BlockSignature covers all documents in a block (txs, logs, ALEs, and the block itself)
+type Ethereum__Mainnet__BlockSignature {
     blockNumber: Int @index
+    blockHash: String
+    merkleRoot: String
+    cidCount: Int
+    cids: [String]
+    signatureType: String
+    signatureIdentity: String
+    signatureValue: String
+    createdAt: String
+}
+
+# SnapshotSignature seals a snapshot file with a Merkle root over per-block
+# signature Merkle roots. Used for cross-indexer attestation and snapshot exchange.
+type Ethereum__Mainnet__SnapshotSignature {
+    startBlock: Int
+    endBlock: Int
+    merkleRoot: String
+    blockCount: Int
+    signatureType: String
+    signatureIdentity: String
+    signatureValue: String
+    snapshotFile: String
+    createdAt: String
+    blockSigMerkleRoots: [String]
+}
+
+type Ethereum__Mainnet__Transaction {
+    hash: String @index(unique: true)
+    blockHash: String
+    blockNumber: Int
     from: String
     to: String
     value: String
-    gasUsed: String
+    gas: String
     gasPrice: String
-    inputData: String
+    gasUsed: String
+    maxFeePerGas: String
+    maxPriorityFeePerGas: String
+    input: String
     nonce: String
-    transactionIndex: String
+    transactionIndex: Int
+    type: String
+    chainId: String
+    v: String
     r: String
     s: String
-    v: String
+    status: Boolean
+    cumulativeGasUsed: String
+    effectiveGasPrice: String
     # Relationships
-    block: Block @relation(name: "block_transactions")
-    logs: [Log] @relation(name: "transaction_logs")
+    block: Ethereum__Mainnet__Block @index @relation(name: "block_transactions")
+    logs: [Ethereum__Mainnet__Log] @relation(name: "transaction_logs")
+    accessList: [Ethereum__Mainnet__AccessListEntry] @relation(name: "transaction_accessList")
 }
 
-type Log {
+type Ethereum__Mainnet__AccessListEntry {
+    address: String
+    blockNumber: Int
+    storageKeys: [String]
+    transaction: Ethereum__Mainnet__Transaction @index @relation(name: "transaction_accessList")
+}
+
+type Ethereum__Mainnet__Log {
     address: String
     topics: [String]
     data: String
     transactionHash: String
     blockHash: String
-    blockNumber: Int @index
-    transactionIndex: String
-    logIndex: String
+    blockNumber: Int
+    transactionIndex: Int
+    logIndex: Int
     removed: String
     # Relationships
-    block: Block @index @relation(name: "block_transactions")
-    transaction: Transaction @index @relation(name: "transaction_logs")
-    events: [Event] @relation(name: "log_events")
+    block: Ethereum__Mainnet__Block @index @relation(name: "block_logs")
+    transaction: Ethereum__Mainnet__Transaction @index @relation(name: "transaction_logs")
 }
 
-type Event {
-    contractAddress: String
-    eventName: String
-    parameters: String
-    transactionHash: String @index
-    blockHash: String
-    blockNumber: Int @index
-    transactionIndex: String
-    logIndex: String
-    # Relationships
-    log: Log @index @relation(name: "log_events")
+type Ethereum__Mainnet__AttestationRecord {
+    attested_doc: String @index
+    source_doc: String
+    CIDs: [String]
+    doc_type: String @index
+    vote_count: Int @crdt(type: pcounter)
 }
