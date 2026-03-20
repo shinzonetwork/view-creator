@@ -1,0 +1,24 @@
+{
+  "options": {
+    "path": ["node_modules"]
+  },
+  "targets": {
+    "decode_log_debug": {
+      "outFile": "build/decode_log/debug.wasm",
+      "textFile": "build/decode_log/debug.wat",
+      "sourceMap": true,
+      "debug": true,
+      "use": ["abort=decode_log/index/abort"]
+    },
+    "decode_log": {
+      "outFile": "build/decode_log/decode_log.wasm",
+      "textFile": "build/decode_log/decode_log.wat",
+      "sourceMap": true,
+      "optimizeLevel": 3,
+      "shrinkLevel": 0,
+      "converge": false,
+      "noAssert": false,
+      "use": ["abort=decode_log/index/abort"]
+    }
+  }
+}

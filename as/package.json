@@ -1,0 +1,18 @@
+{
+  "name": "@shinzo/lenses",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "bun run build:decode_log",
+    "build:decode_log": "asc decode_log/index.ts --target decode_log",
+    "build:decode_log:debug": "asc decode_log/index.ts --target decode_log_debug",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "assemblyscript-json": "^1.1.0"
+  },
+  "devDependencies": {
+    "assemblyscript": "^0.25.0",
+    "bun-types": "^1.3.11"
+  }
+}

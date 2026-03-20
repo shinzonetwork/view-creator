@@ -1,0 +1,5 @@
+{
+  "extends": "assemblyscript/std/assembly.json",
+  "include": ["./**/*.ts"],
+  "exclude": ["./**/*.test.ts", "./lib/test-helpers.ts", "./lib/test-data.ts"]
+}
