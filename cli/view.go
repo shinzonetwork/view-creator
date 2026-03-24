@@ -17,6 +17,7 @@ func MakeViewCommand() *cobra.Command {
 		},
 	}
 
+	cmd.AddCommand(MakeViewCreateCommand())
 	cmd.AddCommand(MakeViewInitCommand())
 	cmd.AddCommand(MakeViewRollbackCommand())
 	cmd.AddCommand(MakeViewDeleteCommand())
