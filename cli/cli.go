@@ -12,6 +12,7 @@ func NewViewCreatorCommand() *cobra.Command {
 		view,
 		tool,
 		wallet,
+		MakePlaygroundCommand(),
 	)
 
 	return root

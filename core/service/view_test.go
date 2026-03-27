@@ -104,7 +104,7 @@ func TestViewService_LensLifecycle(t *testing.T) {
 		t.Fatalf("failed to write valid wasm file: %v", err)
 	}
 
-	view, err := service.InitLens(name, "testlens", wasmPath, map[string]string{"arg": "val"}, viewStore)
+	view, err := service.InitLens(name, "testlens", wasmPath, map[string]any{"arg": "val"}, viewStore)
 	if err != nil {
 		t.Fatalf("InitLens failed: %v", err)
 	}

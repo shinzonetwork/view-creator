@@ -98,3 +98,15 @@ Create, inspect, enrich, and deploy a view named **testdeploy**:
 - `view add lens` chainable WASM transforms that pre-process data
 - `wallet generate` create a local signing key (store securely)
 - `view deploy` publish the bundle to a target network
+
+---
+
+## Playground
+
+Start a local DefraDB node with the default schema and mock data for interactive exploration:
+
+```bash
+./viewkit playground
+```
+
+This launches DefraDB at `http://127.0.0.1:9181` where you can run GraphQL queries against the loaded schema. The node runs until you stop it with `Ctrl+C`.

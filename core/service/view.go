@@ -91,7 +91,7 @@ func ClearQuery(name string, s viewstore.ViewStore) (models.View, error) {
 	return s.Save(name, view)
 }
 
-func InitLens(name string, label string, path string, args map[string]string, s viewstore.ViewStore) (models.View, error) {
+func InitLens(name string, label string, path string, args map[string]any, s viewstore.ViewStore) (models.View, error) {
 	view, err := s.Load(name)
 	if err != nil {
 		return models.View{}, err

@@ -11,7 +11,9 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -20,12 +22,166 @@ import (
 	viewstore "github.com/shinzonetwork/shinzo-view-creator/core/view/store"
 )
 
+const defraVersion = "1.0.0-rc1"
+const defraPort = "9181"
+
 var defraCmd *exec.Cmd
 
 type DefraViewPayload struct {
-	Query     string         `json:"Query"`
-	SDL       string         `json:"SDL"`
-	Transform map[string]any `json:"Transform"`
+	Query        string  `json:"Query"`
+	SDL          string  `json:"SDL"`
+	TransformCID *string `json:"TransformCID,omitempty"`
+}
+
+type DefraLensModule struct {
+	Path      string         `json:"Path"`
+	Arguments map[string]any `json:"Arguments,omitempty"`
+}
+
+type DefraLensInner struct {
+	Lenses []DefraLensModule `json:"Lenses"`
+}
+
+type DefraLensPayload struct {
+	Lens DefraLensInner `json:"Lens"`
+}
+
+func defraURL() string {
+	return "http://127.0.0.1:" + defraPort
+}
+
+func startDefraNode(debug bool) (string, error) {
+	bin, err := EnsureDefraBinary(defraVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed to ensure defradb binary: %w", err)
+	}
+
+	rootDir, err := os.MkdirTemp("", "defradb-root-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp rootdir: %w", err)
+	}
+
+	env := append(os.Environ(), "DEFRA_KEYRING_SECRET=1234")
+
+	killExistingDefra()
+
+	defraCmd = exec.Command(bin, "start", "--rootdir", rootDir)
+	defraCmd.Env = env
+	defraCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	if debug {
+		defraCmd.Stdout = os.Stdout
+		defraCmd.Stderr = os.Stderr
+	}
+
+	if err := defraCmd.Start(); err != nil {
+		return "", fmt.Errorf("failed to start defradb: %w", err)
+	}
+
+	fmt.Println("🚀 DefraDB is running on port", defraPort)
+	fmt.Println("⏳ Waiting for DefraDB to boot up...")
+	time.Sleep(2 * time.Second)
+	fmt.Println("✅ DefraDB booted up")
+
+	return rootDir, nil
+}
+
+func registerLensAndCreateView(ctx context.Context, baseURL string, view models.View) (string, error) {
+	var transformCID *string
+
+	if len(view.Transform.Lenses) > 0 {
+		lensPayload, err := BuildLensPayload(view)
+		if err != nil {
+			return "", fmt.Errorf("failed to build lens payload: %w", err)
+		}
+
+		fmt.Println("📦 Registering lens transform...")
+		lensCID, err := RegisterLens(ctx, baseURL, lensPayload)
+		if err != nil {
+			return "", fmt.Errorf("failed to register lens: %w", err)
+		}
+		transformCID = &lensCID
+	}
+
+	viewPayload, err := BuildViewPayload(view, transformCID)
+	if err != nil {
+		return "", fmt.Errorf("failed to build view payload: %w", err)
+	}
+
+	return SendViewToDefra(ctx, baseURL, viewPayload)
+}
+
+func DeployViewToPlayground(name string, vs viewstore.ViewStore, ss schemastore.SchemaStore, url string) error {
+	ctx := context.Background()
+
+	fmt.Println("🔍 Loading view...")
+	view, err := vs.Load(name)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to load view: %w", err)
+	}
+
+	fmt.Println("📦 Applying schema...")
+	schemaContent, err := ss.Load()
+	if err != nil {
+		return fmt.Errorf("❌ Failed to load schema: %w", err)
+	}
+	if err := ApplySchemaViaHTTP(ctx, url, schemaContent); err != nil {
+		return fmt.Errorf("❌ Failed to apply schema: %w", err)
+	}
+	fmt.Println("✅ Schema applied")
+
+	fmt.Println("🧠 Applying view...")
+	result, err := registerLensAndCreateView(ctx, url, view)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to apply view: %w", err)
+	}
+	fmt.Println("✅ View applied")
+
+	collection, err := extractCollectionName(result)
+	if err != nil {
+		return fmt.Errorf("❌ Failed to extract collection name: %w", err)
+	}
+
+	fmt.Println("♻️  Refreshing view...")
+	if err := RefreshView(ctx, url, collection); err != nil {
+		return fmt.Errorf("❌ Failed to refresh view: %w", err)
+	}
+	fmt.Println("✅ View refreshed")
+
+	fmt.Println("🎉 View deployed to playground at", url+"/")
+	return nil
+}
+
+func StartLocalNodePlayground(schemastore schemastore.SchemaStore, debug bool) error {
+	ctx := context.Background()
+
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if _, err := startDefraNode(debug); err != nil {
+		return err
+	}
+
+	fmt.Println("⏳ Applying schema...")
+	schemaContent, err := schemastore.Load()
+	if err != nil {
+		return cleanupDefra("failed to load schema", err)
+	}
+
+	if err := ApplySchemaViaHTTP(ctx, defraURL(), schemaContent); err != nil {
+		return cleanupDefra("failed to apply schema", err)
+	}
+	fmt.Println("✅ Schema applied")
+
+	if err := InsertMockData(ctx, defraURL()); err != nil {
+		return cleanupDefra("failed to insert mock data", err)
+	}
+
+	fmt.Println("🧪 DefraDB playground ready at", defraURL()+"/")
+	fmt.Println("📦 Press Ctrl+C to stop...")
+
+	<-ctx.Done()
+	return shutdownDefra()
 }
 
 func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, schemastore schemastore.SchemaStore, debug bool) error {
@@ -36,46 +192,12 @@ func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, sch
 		return err
 	}
 
-	viewJson, err := ConvertViewToDefraJson(view)
-	if err != nil {
-		return err
-	}
-
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	port := "9181"
-
-	bin, err := EnsureDefraBinary("0.18.0")
-	if err != nil {
-		return fmt.Errorf("failed to ensure defradb binary: %w", err)
+	if _, err := startDefraNode(debug); err != nil {
+		return err
 	}
-
-	rootDir, err := os.MkdirTemp("", "defradb-root-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp rootdir: %w", err)
-	}
-
-	env := append(os.Environ(),
-		"DEFRA_KEYRING_SECRET=1234",
-	)
-
-	defraCmd = exec.Command(bin, "start", "--rootdir", rootDir)
-	defraCmd.Env = env
-
-	if debug {
-		defraCmd.Stdout = os.Stdout
-		defraCmd.Stderr = os.Stderr
-	}
-
-	if err := defraCmd.Start(); err != nil {
-		return fmt.Errorf("failed to start defradb: %w", err)
-	}
-
-	fmt.Println("🚀 DefraDB is running on port", port)
-	fmt.Println("⏳ Waiting for DefraDB to boot up...")
-	time.Sleep(2 * time.Second)
-	fmt.Println("✅ DefraDB booted up")
 
 	fmt.Println("⏳ Applying Schemas ...")
 	schemaContent, err := schemastore.Load()
@@ -83,21 +205,18 @@ func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, sch
 		return cleanupDefra("failed to load schema", err)
 	}
 
-	schemaCmd := exec.Command(bin, "client", "schema", "add", schemaContent, "--rootdir", rootDir)
-	schemaCmd.Env = env
-
-	if err := schemaCmd.Run(); err != nil {
+	if err := ApplySchemaViaHTTP(ctx, defraURL(), schemaContent); err != nil {
 		return cleanupDefra("failed to apply schema", err)
 	}
 	fmt.Println("✅ Schema Applied")
 
-	if err := InsertDataToDefra(ctx, GQL); err != nil {
+	if err := InsertMockData(ctx, defraURL()); err != nil {
 		return cleanupDefra("failed to insert data", err)
 	}
 
 	fmt.Println("✅ Applying View ...")
 
-	result, err := SendViewToDefra(ctx, "http://127.0.0.1:9181", viewJson)
+	result, err := registerLensAndCreateView(ctx, defraURL(), view)
 	if err != nil {
 		return cleanupDefra("failed to send view", err)
 	}
@@ -107,14 +226,14 @@ func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, sch
 		return cleanupDefra("failed to send view", err)
 	}
 
-	err = RefreshView(ctx, "http://127.0.0.1:9181", collection)
+	err = RefreshView(ctx, defraURL(), collection)
 	if err != nil {
 		return cleanupDefra("failed to send view", err)
 	}
 
 	fmt.Println("✅ View Successfully Applied")
 
-	fmt.Println("🧪 Visit the DefraDB GraphQL Playground at http://127.0.0.1:9181/")
+	fmt.Println("🧪 Visit the DefraDB GraphQL Playground at", defraURL()+"/")
 	fmt.Println("📦 Press Ctrl+C to stop...")
 
 	<-ctx.Done()
@@ -124,51 +243,18 @@ func StartLocalNodeAndDeployView(name string, viewstore viewstore.ViewStore, sch
 func StartLocalNodeAndTestView(name string, viewstore viewstore.ViewStore, schemastore schemastore.SchemaStore, debug bool) error {
 	ctx := context.Background()
 
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	fmt.Println("🔍 Loading view...")
 	view, err := viewstore.Load(name)
 	if err != nil {
 		return fmt.Errorf("❌ Failed to load view: %w", err)
 	}
 
-	viewJson, err := ConvertViewToDefraJson(view)
-	if err != nil {
-		return fmt.Errorf("❌ Failed to convert view to JSON: %w", err)
+	if _, err := startDefraNode(debug); err != nil {
+		return err
 	}
-
-	fmt.Println("⚙️  Ensuring DefraDB binary...")
-	bin, err := EnsureDefraBinary("0.18.0")
-	if err != nil {
-		return fmt.Errorf("❌ Failed to ensure DefraDB binary: %w", err)
-	}
-
-	fmt.Println("📁 Creating temporary root directory...")
-	rootDir, err := os.MkdirTemp("", "defradb-root-*")
-	if err != nil {
-		return fmt.Errorf("❌ Failed to create temp rootdir: %w", err)
-	}
-
-	env := append(os.Environ(),
-		"DEFRA_KEYRING_SECRET=1234",
-	)
-
-	fmt.Println("🚀 Starting DefraDB...")
-	defraCmd = exec.Command(bin, "start", "--rootdir", rootDir)
-
-	// This is here for debug purposes; Show command output as it happens
-	if debug {
-		defraCmd.Stdout = os.Stdout
-		defraCmd.Stderr = os.Stderr
-	}
-
-	defraCmd.Env = env
-
-	if err := defraCmd.Start(); err != nil {
-		return fmt.Errorf("❌ Failed to start DefraDB: %w", err)
-	}
-
-	fmt.Println("⏳ Waiting for DefraDB to boot...")
-	time.Sleep(2 * time.Second)
-	fmt.Println("✅ DefraDB booted")
 
 	fmt.Println("📦 Applying schema...")
 	schemaContent, err := schemastore.Load()
@@ -176,26 +262,19 @@ func StartLocalNodeAndTestView(name string, viewstore viewstore.ViewStore, schem
 		return cleanupDefra("❌ Failed to load schema", err)
 	}
 
-	schemaCmd := exec.Command(bin, "client", "schema", "add", schemaContent, "--rootdir", rootDir)
-	schemaCmd.Env = env
-
-	// This is here for debug purposes; Show command output as it happens
-	// schemaCmd.Stdout = os.Stdout
-	// schemaCmd.Stderr = os.Stderr
-
-	if err := schemaCmd.Run(); err != nil {
+	if err := ApplySchemaViaHTTP(ctx, defraURL(), schemaContent); err != nil {
 		return cleanupDefra("❌ Failed to apply schema", err)
 	}
 	fmt.Println("✅ Schema applied")
 
 	fmt.Println("📨 Inserting test data...")
-	if err := InsertDataToDefra(ctx, GQL); err != nil {
+	if err := InsertMockData(ctx, defraURL()); err != nil {
 		return cleanupDefra("❌ Failed to insert data", err)
 	}
 	fmt.Println("✅ Data inserted")
 
 	fmt.Println("🧠 Applying view...")
-	result, err := SendViewToDefra(ctx, "http://127.0.0.1:9181", viewJson)
+	result, err := registerLensAndCreateView(ctx, defraURL(), view)
 	if err != nil {
 		return cleanupDefra("❌ Failed to apply view", err)
 	}
@@ -208,45 +287,124 @@ func StartLocalNodeAndTestView(name string, viewstore viewstore.ViewStore, schem
 	}
 
 	fmt.Println("♻️  Refreshing view...")
-	err = RefreshView(ctx, "http://127.0.0.1:9181", collection)
+	err = RefreshView(ctx, defraURL(), collection)
 	if err != nil {
 		return cleanupDefra("❌ Failed to refresh view", err)
 	}
 	fmt.Println("✅ View refreshed")
 
+	fmt.Println("🔎 Querying view results...")
+	fields := extractSDLFields(deref(view.Sdl))
+	query := fmt.Sprintf(`{ %s { %s } }`, collection, strings.Join(fields, " "))
+	queryResult, err := QueryDefra(ctx, defraURL(), query)
+	if err != nil {
+		return cleanupDefra("❌ Failed to query view", err)
+	}
+	fmt.Println("📊 View results:")
+	fmt.Println(queryResult)
+
 	fmt.Println("✅ Test flow completed successfully. Shutting down...")
 	return shutdownDefra()
 }
 
-func ConvertViewToDefraJson(view models.View) (string, error) {
-	transform := map[string]any{
-		"lenses": []map[string]any{},
-	}
-
-	for _, lens := range view.Transform.Lenses {
-		lensMap := map[string]any{
-			"path":      getPathInViewAssets(view.Name, lens.Path),
-			"arguments": lens.Arguments,
-		}
-		transform["lenses"] = append(transform["lenses"].([]map[string]any), lensMap)
-	}
-
+func BuildViewPayload(view models.View, transformCID *string) (string, error) {
 	payload := DefraViewPayload{
-		Query:     deref(view.Query),
-		SDL:       deref(view.Sdl),
-		Transform: transform,
+		Query:        deref(view.Query),
+		SDL:          deref(view.Sdl),
+		TransformCID: transformCID,
 	}
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(payload); err != nil {
 		return "", err
 	}
-
 	return buf.String(), nil
 }
 
-func SendViewToDefra(ctx context.Context, defraURL string, jsonPayload string) (string, error) {
-	url := defraURL + "/api/v0/view"
+func BuildLensPayload(view models.View) (string, error) {
+	modules := make([]DefraLensModule, 0, len(view.Transform.Lenses))
+	for _, lens := range view.Transform.Lenses {
+		wasmBase64 := getPathInViewAssets(view.Name, lens.Path)
+		args := make(map[string]any, len(lens.Arguments))
+		for k, v := range lens.Arguments {
+			args[k] = v
+		}
+		modules = append(modules, DefraLensModule{
+			Path:      wasmBase64,
+			Arguments: args,
+		})
+	}
+
+	payload := DefraLensPayload{Lens: DefraLensInner{Lenses: modules}}
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(payload); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+func RegisterLens(ctx context.Context, baseURL string, lensPayload string) (string, error) {
+	url := baseURL + "/api/v0/lens"
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBufferString(lensPayload))
+	if err != nil {
+		return "", fmt.Errorf("failed to create lens request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send lens request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return "", fmt.Errorf("lens registration failed (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var lensResp struct {
+		LensID string `json:"lensId"`
+	}
+	if err := json.Unmarshal(body, &lensResp); err != nil {
+		return "", fmt.Errorf("failed to parse lens response: %w", err)
+	}
+	if lensResp.LensID == "" {
+		return "", fmt.Errorf("no lensId in response: %s", string(body))
+	}
+
+	return lensResp.LensID, nil
+}
+
+func ApplySchemaViaHTTP(ctx context.Context, baseURL string, schema string) error {
+	url := baseURL + "/api/v0/collections"
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBufferString(schema))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		if resp.StatusCode == http.StatusBadRequest && strings.Contains(string(body), "collection already exists") {
+			return nil
+		}
+		return fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+func SendViewToDefra(ctx context.Context, baseURL string, jsonPayload string) (string, error) {
+	url := baseURL + "/api/v0/view"
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBufferString(jsonPayload))
 	if err != nil {
@@ -265,14 +423,22 @@ func SendViewToDefra(ctx context.Context, defraURL string, jsonPayload string) (
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		if resp.StatusCode == http.StatusBadRequest {
+			bodyStr := string(body)
+			if idx := strings.Index(bodyStr, "collection already exists. Name: "); idx >= 0 {
+				name := strings.TrimSpace(bodyStr[idx+len("collection already exists. Name: "):])
+				name = strings.FieldsFunc(name, func(r rune) bool { return r == '"' || r == '}' || r == '\n' })[0]
+				return fmt.Sprintf(`[{"Name":%q}]`, name), nil
+			}
+		}
 		return "", fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(body))
 	}
 
 	return string(body), nil
 }
 
-func RefreshView(ctx context.Context, defraURL string, collection string) error {
-	url := fmt.Sprintf("%s/api/v0/view/refresh?name=%s", defraURL, collection)
+func RefreshView(ctx context.Context, baseURL string, collection string) error {
+	url := fmt.Sprintf("%s/api/v0/view/refresh?name=%s", baseURL, collection)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
 	if err != nil {
@@ -294,29 +460,6 @@ func RefreshView(ctx context.Context, defraURL string, collection string) error 
 	return nil
 }
 
-// func extractCollectionName(result string) (string, error) {
-// 	var parsed []map[string]interface{}
-// 	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
-// 		return "", fmt.Errorf("failed to parse result: %w", err)
-// 	}
-
-// 	if len(parsed) == 0 {
-// 		return "", fmt.Errorf("empty result")
-// 	}
-
-// 	version, ok := parsed[0]["version"].(map[string]interface{})
-// 	if !ok {
-// 		return "", fmt.Errorf("missing or invalid 'version' field")
-// 	}
-
-// 	name, ok := version["Name"].(string)
-// 	if !ok {
-// 		return "", fmt.Errorf("missing or invalid 'Name' field")
-// 	}
-
-// 	return name, nil
-// }
-
 func extractCollectionName(result string) (string, error) {
 	var parsed []map[string]any
 	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
@@ -326,7 +469,6 @@ func extractCollectionName(result string) (string, error) {
 		return "", fmt.Errorf("empty result")
 	}
 
-	// Format A: { "version": { "Name": ... }, "schema": ... }
 	if vRaw, ok := parsed[0]["version"]; ok && vRaw != nil {
 		if v, ok := vRaw.(map[string]any); ok {
 			if name, ok := v["Name"].(string); ok && name != "" {
@@ -337,7 +479,6 @@ func extractCollectionName(result string) (string, error) {
 		return "", fmt.Errorf("invalid 'version' type")
 	}
 
-	// Format B: { "Name": "...", "VersionID": "...", ... }
 	if name, ok := parsed[0]["Name"].(string); ok && name != "" {
 		return name, nil
 	}
@@ -345,7 +486,67 @@ func extractCollectionName(result string) (string, error) {
 	return "", fmt.Errorf("missing 'Name' in both formats")
 }
 
-func InsertDataToDefra(ctx context.Context, data string) error {
+func InsertMockData(ctx context.Context, baseURL string) error {
+	fmt.Println("⏳ Inserting mock data (phase 1: blocks)...")
+	if err := InsertDataToDefra(ctx, baseURL, GQL_BLOCKS); err != nil {
+		return fmt.Errorf("failed to insert blocks: %w", err)
+	}
+
+	fmt.Println("⏳ Inserting mock data (phase 2: transactions)...")
+	if err := InsertDataToDefra(ctx, baseURL, GQL_TRANSACTIONS); err != nil {
+		return fmt.Errorf("failed to insert transactions: %w", err)
+	}
+
+	fmt.Println("⏳ Querying docIDs for relation linking...")
+	blockDocIDs, err := queryDocIDsByHash(ctx, baseURL, "Ethereum__Mainnet__Block")
+	if err != nil {
+		return fmt.Errorf("failed to query block docIDs: %w", err)
+	}
+	txDocIDs, err := queryDocIDsByHash(ctx, baseURL, "Ethereum__Mainnet__Transaction")
+	if err != nil {
+		return fmt.Errorf("failed to query transaction docIDs: %w", err)
+	}
+	fmt.Printf("   blocks: %d, transactions: %d\n", len(blockDocIDs), len(txDocIDs))
+
+	fmt.Println("⏳ Inserting mock data (phase 3: logs with relations)...")
+	logsMutation := BuildLogsMutation(blockDocIDs, txDocIDs)
+	if err := InsertDataToDefra(ctx, baseURL, logsMutation); err != nil {
+		return fmt.Errorf("failed to insert logs: %w", err)
+	}
+
+	fmt.Println("✅ Mock data inserted")
+	return nil
+}
+
+func queryDocIDsByHash(ctx context.Context, baseURL, typeName string) (map[string]string, error) {
+	query := fmt.Sprintf(`{ %s { hash _docID } }`, typeName)
+	result, err := QueryDefra(ctx, baseURL, query)
+	if err != nil {
+		return nil, err
+	}
+
+	var parsed struct {
+		Data map[string][]struct {
+			Hash  string `json:"hash"`
+			DocID string `json:"_docID"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		return nil, fmt.Errorf("failed to parse query response: %w", err)
+	}
+
+	docIDs := make(map[string]string)
+	for _, docs := range parsed.Data {
+		for _, v := range docs {
+			if v.Hash != "" && v.DocID != "" {
+				docIDs[v.Hash] = v.DocID
+			}
+		}
+	}
+	return docIDs, nil
+}
+
+func InsertDataToDefra(ctx context.Context, baseURL string, data string) error {
 	fmt.Println("⏳ Data Inserting...")
 
 	reqBody := map[string]string{
@@ -357,7 +558,7 @@ func InsertDataToDefra(ctx context.Context, data string) error {
 		return fmt.Errorf("failed to encode request body: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", "http://127.0.0.1:9181/api/v0/graphql", buf)
+	req, err := http.NewRequestWithContext(ctx, "POST", baseURL+"/api/v0/graphql", buf)
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request: %w", err)
 	}
@@ -372,6 +573,10 @@ func InsertDataToDefra(ctx context.Context, data string) error {
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
+	}
+
+	if bodyStr := string(body); strings.Contains(bodyStr, `"errors"`) {
+		fmt.Println("⚠️  Insert response has errors:", bodyStr[:min(len(bodyStr), 500)])
 	}
 
 	fmt.Println("✅ Data Inserted Successfully")
@@ -430,10 +635,9 @@ func DownloadDefraDB(version string, dir ...string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-	    body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
-	    return fmt.Errorf("failed to download defradb (%s): status %d: %s", url, resp.StatusCode, string(body))
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
+		return fmt.Errorf("failed to download defradb (%s): status %d: %s", url, resp.StatusCode, string(body))
 	}
-
 
 	binary := filepath.Join(base, "defradb")
 	out, err := os.Create(binary)
@@ -477,16 +681,48 @@ func DeleteDefraDB(dir ...string) error {
 }
 
 func shutdownDefra() error {
-	if defraCmd != nil && defraCmd.Process != nil {
-		if err := defraCmd.Process.Signal(syscall.SIGTERM); err != nil {
-			fmt.Println("⚠️ Could not send SIGTERM:", err)
-		} else if err := defraCmd.Wait(); err != nil {
+	if defraCmd == nil || defraCmd.Process == nil {
+		return nil
+	}
+
+	pid := defraCmd.Process.Pid
+	pgid := -pid
+
+	if err := syscall.Kill(pgid, syscall.SIGTERM); err != nil {
+		fmt.Println("⚠️ Could not send SIGTERM to process group:", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- defraCmd.Wait() }()
+
+	select {
+	case err := <-done:
+		if err != nil {
 			fmt.Println("⚠️ DefraDB did not exit cleanly:", err)
 		} else {
 			fmt.Println("✅ DefraDB stopped.")
 		}
+	case <-time.After(5 * time.Second):
+		fmt.Println("⚠️ DefraDB did not stop in time, force killing...")
+		_ = syscall.Kill(pgid, syscall.SIGKILL)
+		<-done
+		fmt.Println("✅ DefraDB force killed.")
 	}
+
+	defraCmd = nil
 	return nil
+}
+
+func killExistingDefra() {
+	out, err := exec.Command("lsof", "-ti", "tcp:"+defraPort).Output()
+	if err != nil || len(out) == 0 {
+		return
+	}
+	for _, pidStr := range bytes.Split(bytes.TrimSpace(out), []byte("\n")) {
+		fmt.Printf("⚠️ Killing leftover defradb process (pid %s) on port %s\n", pidStr, defraPort)
+		_ = exec.Command("kill", "-9", string(pidStr)).Run()
+	}
+	time.Sleep(500 * time.Millisecond)
 }
 
 func cleanupDefra(reason string, err error) error {
@@ -496,20 +732,41 @@ func cleanupDefra(reason string, err error) error {
 }
 
 func defraDownloadURL(version string) string {
-    osName := runtime.GOOS
-    arch := runtime.GOARCH
+	osName := runtime.GOOS
+	arch := runtime.GOARCH
 
-    // DefraDB v0.18.0 release assets use x86_64 (not amd64) for Linux/Windows filenames.
-    if arch == "amd64" {
-        arch = "x86_64"
-    }
+	if arch == "amd64" {
+		arch = "x86_64"
+	}
 
-    return fmt.Sprintf(
-        "https://github.com/sourcenetwork/defradb/releases/download/v%s/defradb_%s_%s_%s",
-        version, version, osName, arch,
-    )
+	return fmt.Sprintf(
+		"https://github.com/sourcenetwork/defradb/releases/download/v%s/defradb_%s_%s_%s",
+		version, version, osName, arch,
+	)
 }
 
+func QueryDefra(ctx context.Context, baseURL string, query string) (string, error) {
+	reqBody := map[string]string{"query": query}
+	buf := new(bytes.Buffer)
+	if err := json.NewEncoder(buf).Encode(reqBody); err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", baseURL+"/api/v0/graphql", buf)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	return string(body), nil
+}
 
 func getPathInViewAssets(viewName, relativePath string) string {
 	home, err := os.UserHomeDir()
@@ -525,4 +782,19 @@ func deref(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+func extractSDLFields(sdl string) []string {
+	braceIdx := strings.Index(sdl, "{")
+	if braceIdx < 0 {
+		return nil
+	}
+	body := sdl[braceIdx:]
+	re := regexp.MustCompile(`(\w+)\s*:\s*(?:String|Int|Float|Boolean|ID|\[)`)
+	matches := re.FindAllStringSubmatch(body, -1)
+	var fields []string
+	for _, m := range matches {
+		fields = append(fields, m[1])
+	}
+	return fields
 }

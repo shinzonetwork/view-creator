@@ -23,6 +23,9 @@ func TestRemoveQueryFromView(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp store: %v", err)
 	}
+	if err := schemastore.SaveCustom("type Log { address: String\n topics: [String]\n data: String\n transactionHash: String\n blockNumber: Int }"); err != nil {
+		t.Fatalf("failed to save custom schema: %v", err)
+	}
 
 	viewName := "testview"
 
