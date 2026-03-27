@@ -33,6 +33,12 @@ type ViewLite struct {
 	Transform models.Transform `json:"transform"`
 }
 
+type txResult struct {
+	TxHash      string
+	GasUsed     uint64
+	BlockNumber uint64
+}
+
 // ---------------------------
 // Deploy entry
 // ---------------------------
@@ -163,7 +169,7 @@ func StartLocalNodeTestAndDeploy(
 		return err
 	}
 
-	txHash, err := sendRegisterTx(rpc, SHINZO_HUB_PRECOMPILED_VIEW_REGISTRY_ADDRESS, privateKey, wireBytes)
+	result, err := sendRegisterTx(rpc, SHINZO_HUB_PRECOMPILED_VIEW_REGISTRY_ADDRESS, privateKey, wireBytes)
 	if err != nil {
 		return err
 	}
@@ -172,8 +178,10 @@ func StartLocalNodeTestAndDeploy(
 	fmt.Println("----------------------------------------")
 	fmt.Printf("🔑 View ID:           %s\n", viewID)
 	fmt.Printf("🔑 View Key:          %s\n", viewHash.Hex())
-	fmt.Printf("📦 Transaction Hash:  %s\n", txHash)
-	fmt.Printf("Wire bytes (tx data):%d\n", len(wireBytes))
+	fmt.Printf("📦 Transaction Hash:  %s\n", result.TxHash)
+	fmt.Printf("⛽ Gas Used:          %d\n", result.GasUsed)
+	fmt.Printf("🧱 Block Number:      %d\n", result.BlockNumber)
+	fmt.Printf("📏 Wire bytes (size): %d\n", len(wireBytes))
 	fmt.Println("----------------------------------------")
 
 	return nil
@@ -211,10 +219,10 @@ func sendRegisterTx(
 	contractAddr string,
 	privateKey *ecdsa.PrivateKey,
 	payload []byte,
-) (string, error) {
+) (txResult, error) {
 	client, err := ethclient.Dial(rpcURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to connect to RPC: %w", err)
+		return txResult{}, fmt.Errorf("failed to connect to RPC: %w", err)
 	}
 	defer client.Close()
 
@@ -225,17 +233,17 @@ func sendRegisterTx(
 
 	nonce, err := client.PendingNonceAt(ctx, fromAddress)
 	if err != nil {
-		return "", fmt.Errorf("failed to get nonce: %w", err)
+		return txResult{}, fmt.Errorf("failed to get nonce: %w", err)
 	}
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed to get gas price: %w", err)
+		return txResult{}, fmt.Errorf("failed to get gas price: %w", err)
 	}
 
 	chainID, err := client.NetworkID(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed to get chain ID: %w", err)
+		return txResult{}, fmt.Errorf("failed to get chain ID: %w", err)
 	}
 
 	// Encode register(bytes) calldata
@@ -262,14 +270,43 @@ func sendRegisterTx(
 
 	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
 	if err != nil {
-		return "", fmt.Errorf("failed to sign tx: %w", err)
+		return txResult{}, fmt.Errorf("failed to sign tx: %w", err)
 	}
 
 	if err := client.SendTransaction(ctx, signedTx); err != nil {
-		return "", fmt.Errorf("failed to send tx: %w", err)
+		return txResult{}, fmt.Errorf("failed to send tx: %w", err)
 	}
 
-	return signedTx.Hash().Hex(), nil
+	txHash := signedTx.Hash()
+	fmt.Printf("⏳ Transaction sent (%s). Waiting for confirmation...\n", txHash.Hex())
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return txResult{}, fmt.Errorf("timed out waiting for tx receipt (tx may still succeed): %s", txHash.Hex())
+		case <-ticker.C:
+			receipt, err := client.TransactionReceipt(ctx, txHash)
+			if err != nil {
+				continue
+			}
+
+			if receipt.Status == types.ReceiptStatusFailed {
+				return txResult{}, fmt.Errorf(
+					"❌ transaction reverted on-chain (gas used: %d, tx: %s)",
+					receipt.GasUsed, txHash.Hex(),
+				)
+			}
+
+			return txResult{
+				TxHash:      txHash.Hex(),
+				GasUsed:     receipt.GasUsed,
+				BlockNumber: receipt.BlockNumber.Uint64(),
+			}, nil
+		}
+	}
 }
 
 func EncodeRegisterBytesCalldata(payload []byte) []byte {
